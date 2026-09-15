@@ -254,7 +254,7 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* LEFT COLUMN: Editorial Video Frame */}
+            {/* LEFT COLUMN: Editorial Card Frame */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -263,36 +263,49 @@ export default function Home() {
               className="lg:col-span-6 flex items-center justify-center lg:justify-end mt-4 lg:mt-0 order-2"
             >
               {/* slightly asymmetrical framing: taller on right, rounded corners */}
-              <div className="relative w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[480px] aspect-[4/5] sm:aspect-[3/4] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] overflow-hidden shadow-luxury border border-gold/10 group bg-beige">
-                <video
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  poster="https://images.unsplash.com/photo-1594913785160-3183562a1ab5?auto=format&fit=crop&w=1200&q=80"
-                  className="w-full h-full object-cover transition-transform duration-[15s] group-hover:scale-105 motion-reduce:hidden"
-                >
-                  {/* Generic luxury/smoke/perfume placeholder video */}
-                  <source src="https://assets.mixkit.co/videos/preview/mixkit-ink-swirling-in-water-438-large.mp4" type="video/mp4" />
-                </video>
-                
-                {/* Fallback Poster image for reduced motion */}
-                <div className="absolute inset-0 z-[-1]">
-                  <img 
-                    src="https://images.unsplash.com/photo-1594913785160-3183562a1ab5?auto=format&fit=crop&w=1200&q=80" 
-                    alt="ARAYAF Perfume" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Subtle Inner Shadow & Gradient for Depth */}
-                <div className="absolute inset-0 bg-gradient-to-t from-burgundy-dark/60 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(62,39,35,0.1)] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] pointer-events-none border-[0.5px] border-white/20" />
+              <div className="relative w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[480px] aspect-[4/5] sm:aspect-[3/4] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] overflow-hidden shadow-luxury border border-gold/20 group bg-beige">
+                {/* Hero Card Image */}
+                <img
+                  src={heroImg}
+                  alt={cardTitle}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-[15s] group-hover:scale-105"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=1200&q=85";
+                  }}
+                />
 
-                {/* Elegant Overlay Label */}
-                <div className="absolute bottom-8 left-8 right-8 text-center text-cream">
-                  <div className="text-[10px] tracking-[0.3em] uppercase text-gold-soft mb-2 opacity-80">Signature Collection</div>
-                  <div className="text-xl font-serif italic opacity-90">ARAYAF</div>
+                {/* Subtle Inner Shadow & Gradient for Depth */}
+                <div className="absolute inset-0 bg-gradient-to-t from-burgundy-dark/90 via-burgundy-dark/30 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(62,39,35,0.2)] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] pointer-events-none border-[0.5px] border-white/20" />
+
+                {/* Top Badge on Card */}
+                {cardOrigin && (
+                  <div className="absolute top-6 right-6">
+                    <span className="px-3 py-1 rounded-full bg-cream/90 backdrop-blur-md text-burgundy text-[10px] font-bold shadow-sm border border-gold/30">
+                      {cardOrigin}
+                    </span>
+                  </div>
+                )}
+
+                {/* Elegant Overlay Label & Info */}
+                <div className="absolute bottom-8 left-6 right-6 text-center text-cream space-y-1.5">
+                  <div className="text-[10px] tracking-[0.3em] uppercase text-gold-soft opacity-90 font-serif">
+                    Signature Collection
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-bold font-alexandria text-white drop-shadow-md">
+                    {cardTitle}
+                  </h3>
+                  {cardSubtitle && (
+                    <p className="text-xs text-cream/80 line-clamp-2 font-serif italic">
+                      {cardSubtitle}
+                    </p>
+                  )}
+                  {cardFooterText && (
+                    <div className="pt-2 text-[11px] text-gold font-bold">
+                      {cardFooterText}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

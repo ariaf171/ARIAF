@@ -21,6 +21,7 @@ import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
+import { ProtectedRoute, AdminRoute } from "./components/AuthGuard";
 
 // Helper component to scroll to top on page change
 function ScrollToTop() {
@@ -71,8 +72,22 @@ function AppLayout() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <Account />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <Admin />
+                </AdminRoute>
+              }
+            />
             {/* Catch-all fallback */}
             <Route path="*" element={<Home />} />
           </Routes>

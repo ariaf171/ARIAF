@@ -226,10 +226,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .select("role")
         .eq("user_id", userId)
         .maybeSingle();
+
       if (roleData?.role) {
         setRole(roleData.role as AppRole);
       } else {
-        setRole("customer");
+        // Fallback: Check if user email is ariaf@gmail.com
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email?.toLowerCase() === "ariaf@gmail.com") {
+          setRole("admin");
+        } else {
+          setRole("customer");
+        }
       }
 
       // 3. Sync Wishlist from Supabase
@@ -249,15 +256,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshProfile = async () => {
-    if (user) await loadUserProfile(user.id);
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        setUser(currentUser);
+        await loadUserProfile(currentUser.id);
+      }
+    } catch (e) {
+      console.error("Error in refreshProfile:", e);
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setRole("customer");
-    showToast("تم تسجيل الخروج بنجاح", "info");
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Error during signOut:", err);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setRole("customer");
+      showToast("تم تسجيل الخروج بنجاح", "info");
+    }
   };
 
   // Cart operations

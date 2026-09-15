@@ -76,6 +76,12 @@ export default function Logo3D({
     xl: "h-24 max-w-[280px]",
   }[size];
 
+  const [imageError, setImageError] = useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [customLogoUrl]);
+
   return (
     <motion.div
       className={`relative inline-block select-none cursor-pointer ${className}`}
@@ -100,12 +106,13 @@ export default function Logo3D({
         }}
         className="relative flex flex-col items-center justify-center"
       >
-        {customLogoUrl ? (
+        {customLogoUrl && !imageError ? (
           <div style={{ transform: "translateZ(25px)" }} className="flex items-center justify-center">
             <img
               src={customLogoUrl}
               alt="أرياف ARAYAF"
               className={`${imgHeights} object-contain filter drop-shadow-sm`}
+              onError={() => setImageError(true)}
             />
           </div>
         ) : (

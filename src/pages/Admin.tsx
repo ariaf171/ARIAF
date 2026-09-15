@@ -55,7 +55,7 @@ import type {
 } from "../lib/types";
 import Logo3D from "../components/Logo3D";
 import AdminProductModal from "../components/AdminProductModal";
-
+import AdminReports from "../components/AdminReports";
 export default function Admin() {
   const { user, role, isStaff, isAdmin, formatPrice, settings, showToast, reloadSettings, signOut, refreshProfile } = useStore();
   const navigate = useNavigate();
@@ -252,6 +252,24 @@ export default function Admin() {
 
   useEffect(() => {
     loadAdminData();
+
+    // Set up real-time subscriptions for auto-refresh
+    const channel = supabase
+      .channel('admin-dashboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadAdminData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        loadAdminData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        loadAdminData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Compute Overview Analytics
@@ -537,7 +555,7 @@ export default function Admin() {
     try {
       const ext = file.name.split(".").pop();
       const fileName = `hero_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-      const filePath = `banners/${fileName}`;
+      const filePath = `ui/${fileName}`;
 
       const { error } = await supabase.storage
         .from("products")
@@ -820,140 +838,546 @@ export default function Admin() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col lg:flex-row">
-        {/* Admin Luxury Sidebar */}
-        <aside className="w-full lg:w-64 bg-[#3B0716] text-cream p-4 border-l border-gold/20 flex flex-col justify-between shrink-0">
-          <div className="space-y-1">
-            {navMenuItems.map((item) => {
-              const Icon = item.icon;
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 ${
-                    active
-                      ? "bg-gold text-burgundy-dark shadow-sm"
-                      : "text-cream/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${active ? "text-burgundy-dark" : "text-gold"}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Admin Luxury Sidebar */}
+          <aside className="w-full lg:w-64 bg-[#3B0716] text-cream p-4 border-l border-gold/20 flex flex-col justify-between shrink-0">
+            <div className="space-y-1">
+              {navMenuItems.map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id as any)}
+                    className={`w-full text-right px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-3 ${active
+                        ? "bg-gold text-burgundy-dark shadow-sm"
+                        : "text-cream/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                  >
+                    <Icon className={`w-4 h-4 ${active ? "text-burgundy-dark" : "text-gold"}`} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="pt-6 border-t border-gold/20 mt-6 text-[11px] text-cream/50 text-center">
-            أرياف ARAYAF v1.0 • Supabase Live
-          </div>
-        </aside>
+            <div className="pt-6 border-t border-gold/20 mt-6 text-[11px] text-cream/50 text-center">
+              أرياف ARAYAF v1.0 • Supabase Live
+            </div>
+          </aside>
 
-        {/* Admin Content Viewport */}
-        <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full">
-          {/* 1. OVERVIEW / DASHBOARD */}
-          {activeTab === "overview" && (
-            <div className="space-y-8">
-              <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                نظرة عامة على أداء المتجر
-              </h1>
+          {/* Admin Content Viewport */}
+          <main className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full">
+            {/* 1. OVERVIEW / DASHBOARD */}
+            {activeTab === "overview" && (
+              <div className="space-y-8">
+                <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                  نظرة عامة على أداء المتجر
+                </h1>
 
-              {/* KPI Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
-                  <span className="text-xs text-darkText/60 block font-bold">إجمالي المبيعات</span>
-                  <span className="text-2xl font-black text-burgundy mt-1 block">
-                    {formatPrice(analytics.totalSales)}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-bold mt-2 inline-block">
-                    مبيعات اليوم: {formatPrice(analytics.todaySales)}
-                  </span>
+                {/* KPI Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
+                    <span className="text-xs text-darkText/60 block font-bold">إجمالي المبيعات</span>
+                    <span className="text-2xl font-black text-burgundy mt-1 block">
+                      {formatPrice(analytics.totalSales)}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-bold mt-2 inline-block">
+                      مبيعات اليوم: {formatPrice(analytics.todaySales)}
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
+                    <span className="text-xs text-darkText/60 block font-bold">إجمالي الطلبات</span>
+                    <span className="text-2xl font-black text-burgundy mt-1 block">
+                      {analytics.ordersCount} طلب
+                    </span>
+                    <span className="text-[10px] text-darkText/50 mt-2 inline-block">
+                      جميع الحالات المسجلة
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
+                    <span className="text-xs text-darkText/60 block font-bold">العملاء المسجلين</span>
+                    <span className="text-2xl font-black text-burgundy mt-1 block">
+                      {analytics.customersCount} عميل
+                    </span>
+                    <span className="text-[10px] text-gold-dark font-bold mt-2 inline-block">
+                      قاعدة عملاء النخبة
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
+                    <span className="text-xs text-darkText/60 block font-bold">تنبيهات المخزون المنخفض</span>
+                    <span className="text-2xl font-black text-amber-600 mt-1 block">
+                      {analytics.lowStockCount} منتج
+                    </span>
+                    <span className="text-[10px] text-amber-700 font-semibold mt-2 inline-block">
+                      أقل من 5 قطع بالمستودع
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
-                  <span className="text-xs text-darkText/60 block font-bold">إجمالي الطلبات</span>
-                  <span className="text-2xl font-black text-burgundy mt-1 block">
-                    {analytics.ordersCount} طلب
-                  </span>
-                  <span className="text-[10px] text-darkText/50 mt-2 inline-block">
-                    جميع الحالات المسجلة
-                  </span>
-                </div>
+                {/* Recent Orders List */}
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card">
+                  <div className="flex items-center justify-between border-b border-graySoft pb-4 mb-4">
+                    <h3 className="text-base font-bold text-burgundy">أحدث الطلبات الواردة</h3>
+                    <button
+                      onClick={() => setActiveTab("orders")}
+                      className="text-xs font-bold text-gold-dark hover:underline"
+                    >
+                      عرض جميع الطلبات ←
+                    </button>
+                  </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
-                  <span className="text-xs text-darkText/60 block font-bold">العملاء المسجلين</span>
-                  <span className="text-2xl font-black text-burgundy mt-1 block">
-                    {analytics.customersCount} عميل
-                  </span>
-                  <span className="text-[10px] text-gold-dark font-bold mt-2 inline-block">
-                    قاعدة عملاء النخبة
-                  </span>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 border border-gold/25 shadow-card">
-                  <span className="text-xs text-darkText/60 block font-bold">تنبيهات المخزون المنخفض</span>
-                  <span className="text-2xl font-black text-amber-600 mt-1 block">
-                    {analytics.lowStockCount} منتج
-                  </span>
-                  <span className="text-[10px] text-amber-700 font-semibold mt-2 inline-block">
-                    أقل من 5 قطع بالمستودع
-                  </span>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs">
+                      <thead>
+                        <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                          <th className="py-2">رقم الطلب</th>
+                          <th>العميل</th>
+                          <th>المدينة</th>
+                          <th>المبلغ</th>
+                          <th>الحالة</th>
+                          <th>التاريخ</th>
+                          <th>الإجراء</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-graySoft">
+                        {orders.slice(0, 5).map((o) => {
+                          const st = statusLabels[o.status] || {
+                            label: o.status,
+                            color: "bg-gray-100",
+                          };
+                          return (
+                            <tr key={o.id} className="hover:bg-beige/30">
+                              <td className="py-3 font-mono font-bold text-burgundy">
+                                {o.order_number}
+                              </td>
+                              <td className="font-bold">{o.customer_name}</td>
+                              <td>{o.city}</td>
+                              <td className="font-bold">{formatPrice(o.total_amount)}</td>
+                              <td>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color}`}>
+                                  {st.label}
+                                </span>
+                              </td>
+                              <td className="text-darkText/60">
+                                {new Date(o.created_at).toLocaleDateString("ar-SA")}
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => setSelectedOrder(o)}
+                                  className="text-gold-dark font-bold hover:underline"
+                                >
+                                  معاينة
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Recent Orders List */}
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card">
-                <div className="flex items-center justify-between border-b border-graySoft pb-4 mb-4">
-                  <h3 className="text-base font-bold text-burgundy">أحدث الطلبات الواردة</h3>
+            {/* 2. PRODUCTS MANAGEMENT */}
+            {activeTab === "products" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <h1 className="text-2xl font-black text-burgundy">إدارة العطور والمنتجات</h1>
                   <button
-                    onClick={() => setActiveTab("orders")}
-                    className="text-xs font-bold text-gold-dark hover:underline"
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setShowProductModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
                   >
-                    عرض جميع الطلبات ←
+                    <Plus className="w-4 h-4 text-gold" />
+                    <span>إضافة عطر جديد</span>
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Products Table */}
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">العطر</th>
+                        <th>التصنيف</th>
+                        <th>السعر</th>
+                        <th>المخزون</th>
+                        <th>التقييم</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {products.map((p) => (
+                        <tr key={p.id} className="hover:bg-beige/30">
+                          <td className="py-3 flex items-center gap-3">
+                            <img
+                              src={
+                                p.product_images?.[0]?.image_url ||
+                                "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=150&q=80"
+                              }
+                              alt=""
+                              className="w-10 h-10 object-contain rounded-lg bg-beige/40 p-1"
+                            />
+                            <div>
+                              <p className="font-bold text-darkText">{p.name_ar}</p>
+                              <p className="text-[10px] text-darkText/50 font-serif">{p.name_en}</p>
+                            </div>
+                          </td>
+                          <td>{p.category?.name_ar || "-"}</td>
+                          <td className="font-bold text-burgundy">
+                            {formatPrice(p.sale_price ?? p.price)}
+                          </td>
+                          <td>
+                            <span
+                              className={`font-bold ${p.stock_quantity <= p.low_stock_threshold
+                                  ? "text-red-600"
+                                  : "text-emerald-700"
+                                }`}
+                            >
+                              {p.stock_quantity} قطعة
+                            </span>
+                          </td>
+                          <td>★ {p.average_rating || 5.0}</td>
+                          <td>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                                }`}
+                            >
+                              {p.is_active ? "نشط" : "معطل"}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingProduct(p);
+                                  setShowProductModal(true);
+                                }}
+                                className="p-1.5 text-gold-dark hover:bg-beige rounded-lg"
+                                title="تعديل"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 3. CATEGORIES MANAGEMENT */}
+            {activeTab === "categories" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-black text-burgundy">إدارة التصنيفات</h1>
+                  <button
+                    onClick={() => {
+                      setEditingCategory(null);
+                      setShowCategoryModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
+                  >
+                    <Plus className="w-4 h-4 text-gold" />
+                    <span>إضافة تصنيف</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {categories.map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-white rounded-3xl p-5 border border-gold/25 shadow-card"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <img
+                          src={c.image_url || ""}
+                          alt=""
+                          className="w-12 h-12 object-cover rounded-xl border border-gold/20"
+                        />
+                        <div>
+                          <h4 className="font-bold text-sm text-burgundy">{c.name_ar}</h4>
+                          <p className="text-[10px] text-darkText/60 font-serif">{c.name_en}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${c.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                          {c.is_active ? "فعال" : "معطل"} • ترتيب: {c.display_order}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => { setEditingCategory(c); setShowCategoryModal(true); }}
+                            className="p-1.5 rounded-lg text-gold-dark hover:bg-beige transition-colors"
+                            title="تعديل"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm("هل أنت متأكد من حذف هذا التصنيف؟")) return;
+                              const { error } = await supabase.from("categories").delete().eq("id", c.id);
+                              if (error) { showToast("فشل حذف التصنيف", "error"); return; }
+                              setCategories((prev) => prev.filter((cat) => cat.id !== c.id));
+                              showToast("تم حذف التصنيف بنجاح");
+                            }}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            title="حذف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Category Modal */}
+                {showCategoryModal && (
+                  <CategoryModal
+                    category={editingCategory}
+                    onClose={() => setShowCategoryModal(false)}
+                    onSaved={(saved: Category) => {
+                      if (editingCategory) {
+                        setCategories((prev) => prev.map((c) => c.id === saved.id ? saved : c));
+                      } else {
+                        setCategories((prev) => [...prev, saved]);
+                      }
+                      setShowCategoryModal(false);
+                      showToast(editingCategory ? "تم تحديث التصنيف بنجاح" : "تم إضافة التصنيف بنجاح");
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* 4. ORDERS MANAGEMENT */}
+            {activeTab === "orders" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <h1 className="text-2xl font-black text-burgundy">إدارة الطلبات والمبيعات</h1>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-gold/30 bg-white text-xs font-bold text-burgundy cursor-pointer"
+                    >
+                      <option value="all">كافة الحالات</option>
+                      <option value="new">جديد</option>
+                      <option value="contacted">تم التواصل</option>
+                      <option value="processing">قيد التجهيز</option>
+                      <option value="shipped">تم الشحن</option>
+                      <option value="delivered">تم التسليم</option>
+                      <option value="cancelled">ملغي</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Orders Table */}
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead>
                       <tr className="text-darkText/60 border-b border-graySoft pb-2">
                         <th className="py-2">رقم الطلب</th>
                         <th>العميل</th>
+                        <th>الهاتف</th>
                         <th>المدينة</th>
                         <th>المبلغ</th>
+                        <th>طريقة الدفع</th>
                         <th>الحالة</th>
-                        <th>التاريخ</th>
-                        <th>الإجراء</th>
+                        <th>تحديث الحالة</th>
+                        <th>تفاصيل</th>
+                        <th>واتساب</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-graySoft">
-                      {orders.slice(0, 5).map((o) => {
-                        const st = statusLabels[o.status] || {
-                          label: o.status,
-                          color: "bg-gray-100",
-                        };
+                      {orders
+                        .filter((o) =>
+                          orderStatusFilter === "all" ? true : o.status === orderStatusFilter
+                        )
+                        .map((o) => {
+                          const st = statusLabels[o.status] || {
+                            label: o.status,
+                            color: "bg-gray-100",
+                          };
+                          return (
+                            <tr key={o.id} className="hover:bg-beige/30">
+                              <td className="py-3 font-mono font-bold text-burgundy">
+                                {o.order_number}
+                              </td>
+                              <td className="font-bold">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{o.customer_name}</span>
+                                  {o.latitude && (
+                                    <span title="محدد بواسطة GPS" className="text-emerald-600">
+                                      <MapPin className="w-3.5 h-3.5 inline" />
+                                    </span>
+                                  )}
+                                  {(o.receipt_image_url || o.transfer_reference_number) && (
+                                    <span title="مرفق إشعار تحويل بنكي" className="text-amber-600">
+                                      <Receipt className="w-3.5 h-3.5 inline" />
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td dir="ltr" className="text-left font-mono">
+                                {o.customer_phone}
+                              </td>
+                              <td>{o.city}</td>
+                              <td className="font-bold text-burgundy">{formatPrice(o.total_amount)}</td>
+                              <td>{o.payment_method}</td>
+                              <td>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color}`}>
+                                  {st.label}
+                                </span>
+                              </td>
+                              <td>
+                                <select
+                                  value={o.status}
+                                  onChange={(e) =>
+                                    handleUpdateOrderStatus(o.id, e.target.value as OrderStatus)
+                                  }
+                                  className="px-2 py-1 rounded-lg border border-gold/30 bg-cream text-[11px] font-bold cursor-pointer"
+                                >
+                                  <option value="new">جديد</option>
+                                  <option value="contacted">تم التواصل</option>
+                                  <option value="processing">قيد التجهيز</option>
+                                  <option value="shipped">تم الشحن</option>
+                                  <option value="delivered">تم التسليم</option>
+                                  <option value="cancelled">ملغي</option>
+                                </select>
+                              </td>
+                              <td>
+                                <button
+                                  onClick={() => setSelectedOrder(o)}
+                                  className="p-1.5 text-burgundy hover:bg-gold/20 rounded-lg inline-flex items-center gap-1 font-bold text-[11px]"
+                                  title="معاينة تفاصيل الطلب والإشعار والموقع"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>عرض</span>
+                                </button>
+                              </td>
+                              <td>
+                                <a
+                                  href={`https://wa.me/${o.customer_phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                                    `السلام عليكم أخي ${o.customer_name}، نتواصل معك بخصوص طلبك من أرياف رقم: ${o.order_number}`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg inline-block"
+                                  title="مراسلة العميل"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </a>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 5. CUSTOMERS */}
+            {activeTab === "customers" && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-black text-burgundy">دليل العملاء المسجلين</h1>
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">الاسم</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>رقم الهاتف</th>
+                        <th>المدينة</th>
+                        <th>تاريخ التسجيل</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {customers.map((c) => (
+                        <tr key={c.id} className="hover:bg-beige/30">
+                          <td className="py-3 font-bold text-burgundy">{c.full_name || "عميل"}</td>
+                          <td dir="ltr" className="text-left font-mono">
+                            {c.email || "-"}
+                          </td>
+                          <td dir="ltr" className="text-left font-mono">
+                            {c.phone || "-"}
+                          </td>
+                          <td>{c.city || "-"}</td>
+                          <td className="text-darkText/60">
+                            {new Date(c.created_at || "").toLocaleDateString("ar-SA")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 6. INVENTORY */}
+            {activeTab === "inventory" && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-black text-burgundy">المخزون والمستودع</h1>
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">العطر</th>
+                        <th>الرمز (SKU)</th>
+                        <th>الكمية المتوفرة</th>
+                        <th>حد التنبيه</th>
+                        <th>الحالة</th>
+                        <th>تعديل سريع</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {products.map((p) => {
+                        const isLow = p.stock_quantity <= p.low_stock_threshold;
+                        const isOut = p.stock_quantity === 0;
                         return (
-                          <tr key={o.id} className="hover:bg-beige/30">
-                            <td className="py-3 font-mono font-bold text-burgundy">
-                              {o.order_number}
-                            </td>
-                            <td className="font-bold">{o.customer_name}</td>
-                            <td>{o.city}</td>
-                            <td className="font-bold">{formatPrice(o.total_amount)}</td>
+                          <tr key={p.id} className="hover:bg-beige/30">
+                            <td className="py-3 font-bold text-burgundy">{p.name_ar}</td>
+                            <td className="font-mono">{p.sku || "-"}</td>
+                            <td className="font-black text-sm">{p.stock_quantity}</td>
+                            <td>{p.low_stock_threshold}</td>
                             <td>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color}`}>
-                                {st.label}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isOut
+                                    ? "bg-red-100 text-red-800"
+                                    : isLow
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-emerald-100 text-emerald-800"
+                                  }`}
+                              >
+                                {isOut ? "نفد المخزون" : isLow ? "مخزون حرج" : "متوفر"}
                               </span>
                             </td>
-                            <td className="text-darkText/60">
-                              {new Date(o.created_at).toLocaleDateString("ar-SA")}
-                            </td>
                             <td>
-                              <button
-                                onClick={() => setSelectedOrder(o)}
-                                className="text-gold-dark font-bold hover:underline"
-                              >
-                                معاينة
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleQuickStock(p.id, 5)}
+                                  className="px-2 py-1 rounded bg-beige hover:bg-gold hover:text-burgundy-dark font-bold text-[10px]"
+                                >
+                                  +5
+                                </button>
+                                <button
+                                  onClick={() => handleQuickStock(p.id, -1)}
+                                  className="px-2 py-1 rounded bg-beige hover:bg-red-100 text-red-700 font-bold text-[10px]"
+                                >
+                                  -1
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -962,1541 +1386,1129 @@ export default function Admin() {
                   </table>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 2. PRODUCTS MANAGEMENT */}
-          {activeTab === "products" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <h1 className="text-2xl font-black text-burgundy">إدارة العطور والمنتجات</h1>
-                <button
-                  onClick={() => {
-                    setEditingProduct(null);
-                    setShowProductModal(true);
-                  }}
-                  className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
-                >
-                  <Plus className="w-4 h-4 text-gold" />
-                  <span>إضافة عطر جديد</span>
-                </button>
-              </div>
-
-              {/* Products Table */}
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">العطر</th>
-                      <th>التصنيف</th>
-                      <th>السعر</th>
-                      <th>المخزون</th>
-                      <th>التقييم</th>
-                      <th>الحالة</th>
-                      <th>الإجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {products.map((p) => (
-                      <tr key={p.id} className="hover:bg-beige/30">
-                        <td className="py-3 flex items-center gap-3">
-                          <img
-                            src={
-                              p.product_images?.[0]?.image_url ||
-                              "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=150&q=80"
-                            }
-                            alt=""
-                            className="w-10 h-10 object-contain rounded-lg bg-beige/40 p-1"
-                          />
-                          <div>
-                            <p className="font-bold text-darkText">{p.name_ar}</p>
-                            <p className="text-[10px] text-darkText/50 font-serif">{p.name_en}</p>
-                          </div>
-                        </td>
-                        <td>{p.category?.name_ar || "-"}</td>
-                        <td className="font-bold text-burgundy">
-                          {formatPrice(p.sale_price ?? p.price)}
-                        </td>
-                        <td>
-                          <span
-                            className={`font-bold ${
-                              p.stock_quantity <= p.low_stock_threshold
-                                ? "text-red-600"
-                                : "text-emerald-700"
-                            }`}
-                          >
-                            {p.stock_quantity} قطعة
-                          </span>
-                        </td>
-                        <td>★ {p.average_rating || 5.0}</td>
-                        <td>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              p.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {p.is_active ? "نشط" : "معطل"}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingProduct(p);
-                                setShowProductModal(true);
-                              }}
-                              className="p-1.5 text-gold-dark hover:bg-beige rounded-lg"
-                              title="تعديل"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* 3. CATEGORIES MANAGEMENT */}
-          {activeTab === "categories" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-burgundy">إدارة التصنيفات</h1>
-                <button
-                  onClick={() => {
-                    setEditingCategory(null);
-                    setShowCategoryModal(true);
-                  }}
-                  className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
-                >
-                  <Plus className="w-4 h-4 text-gold" />
-                  <span>إضافة تصنيف</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="bg-white rounded-3xl p-5 border border-gold/25 shadow-card"
+            {/* 7. COUPONS */}
+            {activeTab === "coupons" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-black text-burgundy">العروض وكوبونات الخصم</h1>
+                  <button
+                    onClick={() => { setEditingCoupon(null); setShowCouponModal(true); }}
+                    className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <img
-                        src={c.image_url || ""}
-                        alt=""
-                        className="w-12 h-12 object-cover rounded-xl border border-gold/20"
-                      />
-                      <div>
-                        <h4 className="font-bold text-sm text-burgundy">{c.name_ar}</h4>
-                        <p className="text-[10px] text-darkText/60 font-serif">{c.name_en}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${c.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
-                        {c.is_active ? "فعال" : "معطل"} • ترتيب: {c.display_order}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => { setEditingCategory(c); setShowCategoryModal(true); }}
-                          className="p-1.5 rounded-lg text-gold-dark hover:bg-beige transition-colors"
-                          title="تعديل"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!confirm("هل أنت متأكد من حذف هذا التصنيف؟")) return;
-                            const { error } = await supabase.from("categories").delete().eq("id", c.id);
-                            if (error) { showToast("فشل حذف التصنيف", "error"); return; }
-                            setCategories((prev) => prev.filter((cat) => cat.id !== c.id));
-                            showToast("تم حذف التصنيف بنجاح");
-                          }}
-                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                          title="حذف"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Category Modal */}
-              {showCategoryModal && (
-                <CategoryModal
-                  category={editingCategory}
-                  onClose={() => setShowCategoryModal(false)}
-                  onSaved={(saved: Category) => {
-                    if (editingCategory) {
-                      setCategories((prev) => prev.map((c) => c.id === saved.id ? saved : c));
-                    } else {
-                      setCategories((prev) => [...prev, saved]);
-                    }
-                    setShowCategoryModal(false);
-                    showToast(editingCategory ? "تم تحديث التصنيف بنجاح" : "تم إضافة التصنيف بنجاح");
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 4. ORDERS MANAGEMENT */}
-          {activeTab === "orders" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <h1 className="text-2xl font-black text-burgundy">إدارة الطلبات والمبيعات</h1>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={orderStatusFilter}
-                    onChange={(e) => setOrderStatusFilter(e.target.value)}
-                    className="px-3 py-2 rounded-xl border border-gold/30 bg-white text-xs font-bold text-burgundy cursor-pointer"
-                  >
-                    <option value="all">كافة الحالات</option>
-                    <option value="new">جديد</option>
-                    <option value="contacted">تم التواصل</option>
-                    <option value="processing">قيد التجهيز</option>
-                    <option value="shipped">تم الشحن</option>
-                    <option value="delivered">تم التسليم</option>
-                    <option value="cancelled">ملغي</option>
-                  </select>
+                    <Plus className="w-4 h-4 text-gold" />
+                    <span>إضافة كوبون</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Orders Table */}
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">رقم الطلب</th>
-                      <th>العميل</th>
-                      <th>الهاتف</th>
-                      <th>المدينة</th>
-                      <th>المبلغ</th>
-                      <th>طريقة الدفع</th>
-                      <th>الحالة</th>
-                      <th>تحديث الحالة</th>
-                      <th>تفاصيل</th>
-                      <th>واتساب</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {orders
-                      .filter((o) =>
-                        orderStatusFilter === "all" ? true : o.status === orderStatusFilter
-                      )
-                      .map((o) => {
-                        const st = statusLabels[o.status] || {
-                          label: o.status,
-                          color: "bg-gray-100",
-                        };
-                        return (
-                          <tr key={o.id} className="hover:bg-beige/30">
-                            <td className="py-3 font-mono font-bold text-burgundy">
-                              {o.order_number}
-                            </td>
-                            <td className="font-bold">
-                              <div className="flex items-center gap-1.5">
-                                <span>{o.customer_name}</span>
-                                {o.latitude && (
-                                  <span title="محدد بواسطة GPS" className="text-emerald-600">
-                                    <MapPin className="w-3.5 h-3.5 inline" />
-                                  </span>
-                                )}
-                                {(o.receipt_image_url || o.transfer_reference_number) && (
-                                  <span title="مرفق إشعار تحويل بنكي" className="text-amber-600">
-                                    <Receipt className="w-3.5 h-3.5 inline" />
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td dir="ltr" className="text-left font-mono">
-                              {o.customer_phone}
-                            </td>
-                            <td>{o.city}</td>
-                            <td className="font-bold text-burgundy">{formatPrice(o.total_amount)}</td>
-                            <td>{o.payment_method}</td>
-                            <td>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color}`}>
-                                {st.label}
-                              </span>
-                            </td>
-                            <td>
-                              <select
-                                value={o.status}
-                                onChange={(e) =>
-                                  handleUpdateOrderStatus(o.id, e.target.value as OrderStatus)
-                                }
-                                className="px-2 py-1 rounded-lg border border-gold/30 bg-cream text-[11px] font-bold cursor-pointer"
-                              >
-                                <option value="new">جديد</option>
-                                <option value="contacted">تم التواصل</option>
-                                <option value="processing">قيد التجهيز</option>
-                                <option value="shipped">تم الشحن</option>
-                                <option value="delivered">تم التسليم</option>
-                                <option value="cancelled">ملغي</option>
-                              </select>
-                            </td>
-                            <td>
-                              <button
-                                onClick={() => setSelectedOrder(o)}
-                                className="p-1.5 text-burgundy hover:bg-gold/20 rounded-lg inline-flex items-center gap-1 font-bold text-[11px]"
-                                title="معاينة تفاصيل الطلب والإشعار والموقع"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>عرض</span>
-                              </button>
-                            </td>
-                            <td>
-                              <a
-                                href={`https://wa.me/${o.customer_phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                                  `السلام عليكم أخي ${o.customer_name}، نتواصل معك بخصوص طلبك من أرياف رقم: ${o.order_number}`
-                                )}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg inline-block"
-                                title="مراسلة العميل"
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                              </a>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* 5. CUSTOMERS */}
-          {activeTab === "customers" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-black text-burgundy">دليل العملاء المسجلين</h1>
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">الاسم</th>
-                      <th>البريد الإلكتروني</th>
-                      <th>رقم الهاتف</th>
-                      <th>المدينة</th>
-                      <th>تاريخ التسجيل</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {customers.map((c) => (
-                      <tr key={c.id} className="hover:bg-beige/30">
-                        <td className="py-3 font-bold text-burgundy">{c.full_name || "عميل"}</td>
-                        <td dir="ltr" className="text-left font-mono">
-                          {c.email || "-"}
-                        </td>
-                        <td dir="ltr" className="text-left font-mono">
-                          {c.phone || "-"}
-                        </td>
-                        <td>{c.city || "-"}</td>
-                        <td className="text-darkText/60">
-                          {new Date(c.created_at || "").toLocaleDateString("ar-SA")}
-                        </td>
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">الكود</th>
+                        <th>الوصف</th>
+                        <th>النوع</th>
+                        <th>قيمة الخصم</th>
+                        <th>الحد الأدنى</th>
+                        <th>مرات الاستخدام</th>
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* 6. INVENTORY */}
-          {activeTab === "inventory" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-black text-burgundy">المخزون والمستودع</h1>
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">العطر</th>
-                      <th>الرمز (SKU)</th>
-                      <th>الكمية المتوفرة</th>
-                      <th>حد التنبيه</th>
-                      <th>الحالة</th>
-                      <th>تعديل سريع</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {products.map((p) => {
-                      const isLow = p.stock_quantity <= p.low_stock_threshold;
-                      const isOut = p.stock_quantity === 0;
-                      return (
-                        <tr key={p.id} className="hover:bg-beige/30">
-                          <td className="py-3 font-bold text-burgundy">{p.name_ar}</td>
-                          <td className="font-mono">{p.sku || "-"}</td>
-                          <td className="font-black text-sm">{p.stock_quantity}</td>
-                          <td>{p.low_stock_threshold}</td>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {coupons.map((c) => (
+                        <tr key={c.id} className="hover:bg-beige/30">
+                          <td className="py-3 font-mono font-black text-burgundy text-sm">{c.code}</td>
+                          <td>{c.description}</td>
+                          <td>{c.discount_type === "percentage" ? "نسبة مئوية" : "مبلغ ثابت"}</td>
+                          <td className="font-bold">
+                            {c.discount_type === "percentage"
+                              ? `${c.discount_value}%`
+                              : formatPrice(c.discount_value)}
+                          </td>
+                          <td>{formatPrice(c.minimum_order_amount || 0)}</td>
+                          <td>{c.usage_count}{c.usage_limit ? `/${c.usage_limit}` : ""}</td>
                           <td>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isOut
-                                  ? "bg-red-100 text-red-800"
-                                  : isLow
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-emerald-100 text-emerald-800"
-                              }`}
+                            <button
+                              onClick={async () => {
+                                const newActive = !c.is_active;
+                                const { error } = await supabase.from("coupons").update({ is_active: newActive }).eq("id", c.id);
+                                if (error) { showToast("فشل تحديث الحالة", "error"); return; }
+                                setCoupons((prev) => prev.map((x) => x.id === c.id ? { ...x, is_active: newActive } : x));
+                                showToast(newActive ? "تم تفعيل الكوبون" : "تم تعطيل الكوبون");
+                              }}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${c.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                                }`}
                             >
-                              {isOut ? "نفد المخزون" : isLow ? "مخزون حرج" : "متوفر"}
-                            </span>
+                              {c.is_active ? "فعال" : "معطل"}
+                            </button>
                           </td>
                           <td>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <button
-                                onClick={() => handleQuickStock(p.id, 5)}
-                                className="px-2 py-1 rounded bg-beige hover:bg-gold hover:text-burgundy-dark font-bold text-[10px]"
+                                onClick={() => { setEditingCoupon(c); setShowCouponModal(true); }}
+                                className="p-1.5 rounded-lg text-gold-dark hover:bg-beige transition-colors"
+                                title="تعديل"
                               >
-                                +5
+                                <Edit className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleQuickStock(p.id, -1)}
-                                className="px-2 py-1 rounded bg-beige hover:bg-red-100 text-red-700 font-bold text-[10px]"
+                                onClick={async () => {
+                                  if (!confirm("هل أنت متأكد من حذف هذا الكوبون؟")) return;
+                                  const { error } = await supabase.from("coupons").delete().eq("id", c.id);
+                                  if (error) { showToast("فشل حذف الكوبون", "error"); return; }
+                                  setCoupons((prev) => prev.filter((x) => x.id !== c.id));
+                                  showToast("تم حذف الكوبون بنجاح");
+                                }}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                                title="حذف"
                               >
-                                -1
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* 7. COUPONS */}
-          {activeTab === "coupons" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-burgundy">العروض وكوبونات الخصم</h1>
-                <button
-                  onClick={() => { setEditingCoupon(null); setShowCouponModal(true); }}
-                  className="px-4 py-2.5 rounded-xl bg-burgundy text-cream text-xs font-bold flex items-center gap-2 shadow-gold"
-                >
-                  <Plus className="w-4 h-4 text-gold" />
-                  <span>إضافة كوبون</span>
-                </button>
-              </div>
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">الكود</th>
-                      <th>الوصف</th>
-                      <th>النوع</th>
-                      <th>قيمة الخصم</th>
-                      <th>الحد الأدنى</th>
-                      <th>مرات الاستخدام</th>
-                      <th>الحالة</th>
-                      <th>إجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {coupons.map((c) => (
-                      <tr key={c.id} className="hover:bg-beige/30">
-                        <td className="py-3 font-mono font-black text-burgundy text-sm">{c.code}</td>
-                        <td>{c.description}</td>
-                        <td>{c.discount_type === "percentage" ? "نسبة مئوية" : "مبلغ ثابت"}</td>
-                        <td className="font-bold">
-                          {c.discount_type === "percentage"
-                            ? `${c.discount_value}%`
-                            : formatPrice(c.discount_value)}
-                        </td>
-                        <td>{formatPrice(c.minimum_order_amount || 0)}</td>
-                        <td>{c.usage_count}{c.usage_limit ? `/${c.usage_limit}` : ""}</td>
-                        <td>
-                          <button
-                            onClick={async () => {
-                              const newActive = !c.is_active;
-                              const { error } = await supabase.from("coupons").update({ is_active: newActive }).eq("id", c.id);
-                              if (error) { showToast("فشل تحديث الحالة", "error"); return; }
-                              setCoupons((prev) => prev.map((x) => x.id === c.id ? { ...x, is_active: newActive } : x));
-                              showToast(newActive ? "تم تفعيل الكوبون" : "تم تعطيل الكوبون");
-                            }}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
-                              c.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {c.is_active ? "فعال" : "معطل"}
-                          </button>
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { setEditingCoupon(c); setShowCouponModal(true); }}
-                              className="p-1.5 rounded-lg text-gold-dark hover:bg-beige transition-colors"
-                              title="تعديل"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!confirm("هل أنت متأكد من حذف هذا الكوبون؟")) return;
-                                const { error } = await supabase.from("coupons").delete().eq("id", c.id);
-                                if (error) { showToast("فشل حذف الكوبون", "error"); return; }
-                                setCoupons((prev) => prev.filter((x) => x.id !== c.id));
-                                showToast("تم حذف الكوبون بنجاح");
-                              }}
-                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                              title="حذف"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Coupon Modal */}
-              {showCouponModal && (
-                <CouponModal
-                  coupon={editingCoupon}
-                  onClose={() => setShowCouponModal(false)}
-                  onSaved={(saved: Coupon) => {
-                    if (editingCoupon) {
-                      setCoupons((prev) => prev.map((c) => c.id === saved.id ? saved : c));
-                    } else {
-                      setCoupons((prev) => [saved, ...prev]);
-                    }
-                    setShowCouponModal(false);
-                    showToast(editingCoupon ? "تم تحديث الكوبون بنجاح" : "تم إضافة الكوبون بنجاح");
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 7.1. STORE LOGO MANAGEMENT */}
-          {activeTab === "logo" && (
-            <div className="space-y-6 max-w-4xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                    تخصيص شعار المتجر (Store Logo)
-                  </h1>
-                  <p className="text-xs text-darkText/60 mt-1">
-                    تغيير صورة الشعار لتظهر فوراً عبر كامل صفحات المتجر (الهيدر، الفوتر، واجهة الهيرو، وشاشة الدخول).
-                  </p>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
-                >
-                  <span>معاينة في المتجر</span>
-                  <span>↗</span>
-                </a>
+                {/* Coupon Modal */}
+                {showCouponModal && (
+                  <CouponModal
+                    coupon={editingCoupon}
+                    onClose={() => setShowCouponModal(false)}
+                    onSaved={(saved: Coupon) => {
+                      if (editingCoupon) {
+                        setCoupons((prev) => prev.map((c) => c.id === saved.id ? saved : c));
+                      } else {
+                        setCoupons((prev) => [saved, ...prev]);
+                      }
+                      setShowCouponModal(false);
+                      showToast(editingCoupon ? "تم تحديث الكوبون بنجاح" : "تم إضافة الكوبون بنجاح");
+                    }}
+                  />
+                )}
               </div>
+            )}
 
-              {/* Live Preview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Dark Theme Header Preview */}
-                <div className="bg-burgundy-dark rounded-3xl p-6 border border-gold/40 shadow-xl text-center space-y-3">
-                  <span className="text-[11px] font-bold text-gold-soft block">معاينة الشعار على الخلفية الداكنة (الهيدر والفوتر)</span>
-                  <div className="py-8 flex justify-center items-center">
-                    {logoForm.logo_url ? (
-                      <img
-                        src={logoForm.logo_url}
-                        alt="معاينة الشعار"
-                        className="max-h-24 max-w-full object-contain filter drop-shadow-md"
-                      />
-                    ) : (
-                      <Logo3D size="lg" />
-                    )}
+            {/* 7.1. STORE LOGO MANAGEMENT */}
+            {activeTab === "logo" && (
+              <div className="space-y-6 max-w-4xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                      تخصيص شعار المتجر (Store Logo)
+                    </h1>
+                    <p className="text-xs text-darkText/60 mt-1">
+                      تغيير صورة الشعار لتظهر فوراً عبر كامل صفحات المتجر (الهيدر، الفوتر، واجهة الهيرو، وشاشة الدخول).
+                    </p>
                   </div>
-                  <p className="text-[10px] text-cream/60">
-                    {logoForm.logo_url ? "يتم استخدام صورة الشعار المخصصة" : "يتم استخدام الشعار ثلاثي الأبعاد المدمج"}
-                  </p>
+
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
+                  >
+                    <span>معاينة في المتجر</span>
+                    <span>↗</span>
+                  </a>
                 </div>
 
-                {/* Light Theme / Cream Preview */}
-                <div className="bg-[#FAF7F2] rounded-3xl p-6 border border-gold/40 shadow-card text-center space-y-3">
-                  <span className="text-[11px] font-bold text-burgundy block">معاينة الشعار على الخلفية الفاتحة (صفحات الدخول)</span>
-                  <div className="py-8 flex justify-center items-center">
-                    {logoForm.light_logo_url || logoForm.logo_url ? (
-                      <img
-                        src={logoForm.light_logo_url || logoForm.logo_url}
-                        alt="معاينة الشعار الفاتح"
-                        className="max-h-24 max-w-full object-contain filter drop-shadow-sm"
-                      />
-                    ) : (
-                      <Logo3D size="lg" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-darkText/60">
-                    {logoForm.light_logo_url ? "شعار مخصص للخلفيات الفاتحة" : "يتم استخدام الشعار الأساسي"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Form */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
-                <form onSubmit={handleSaveLogo} className="space-y-6 text-xs">
-                  {/* Main Logo URL / Upload */}
-                  <div className="space-y-2">
-                    <label className="block font-bold text-darkText">
-                      صورة الشعار الأساسية (للخلفيات الداكنة والوضع العام)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={logoForm.logo_url}
-                        onChange={(e) => setLogoForm({ ...logoForm, logo_url: e.target.value })}
-                        placeholder="مثال: /images/logo.png أو رابط صورة مباشر"
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
-                        dir="ltr"
-                      />
-                      {logoForm.logo_url && (
-                        <button
-                          type="button"
-                          onClick={() => setLogoForm({ ...logoForm, logo_url: "" })}
-                          className="px-3 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold"
-                        >
-                          مسح
-                        </button>
+                {/* Live Preview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Dark Theme Header Preview */}
+                  <div className="bg-burgundy-dark rounded-3xl p-6 border border-gold/40 shadow-xl text-center space-y-3">
+                    <span className="text-[11px] font-bold text-gold-soft block">معاينة الشعار على الخلفية الداكنة (الهيدر والفوتر)</span>
+                    <div className="py-8 flex justify-center items-center">
+                      {logoForm.logo_url ? (
+                        <img
+                          src={logoForm.logo_url}
+                          alt="معاينة الشعار"
+                          className="max-h-24 max-w-full object-contain filter drop-shadow-md"
+                        />
+                      ) : (
+                        <Logo3D size="lg" />
                       )}
                     </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-beige border border-gold/30 hover:bg-gold hover:text-burgundy-dark font-bold text-xs transition-colors shadow-2xs">
-                        <Upload className="w-4 h-4" />
-                        <span>{uploadingLogo ? "جاري رفع الشعار..." : "رفع صورة الشعار من الجهاز (Supabase Storage)"}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleLogoUpload(e, false)}
-                          className="hidden"
-                          disabled={uploadingLogo}
+                    <p className="text-[10px] text-cream/60">
+                      {logoForm.logo_url ? "يتم استخدام صورة الشعار المخصصة" : "يتم استخدام الشعار ثلاثي الأبعاد المدمج"}
+                    </p>
+                  </div>
+
+                  {/* Light Theme / Cream Preview */}
+                  <div className="bg-[#FAF7F2] rounded-3xl p-6 border border-gold/40 shadow-card text-center space-y-3">
+                    <span className="text-[11px] font-bold text-burgundy block">معاينة الشعار على الخلفية الفاتحة (صفحات الدخول)</span>
+                    <div className="py-8 flex justify-center items-center">
+                      {logoForm.light_logo_url || logoForm.logo_url ? (
+                        <img
+                          src={logoForm.light_logo_url || logoForm.logo_url}
+                          alt="معاينة الشعار الفاتح"
+                          className="max-h-24 max-w-full object-contain filter drop-shadow-sm"
                         />
-                      </label>
-                      <span className="text-[11px] text-darkText/50">يُفضل استخدام صورة بصيغة PNG وبخلفية شفافة</span>
+                      ) : (
+                        <Logo3D size="lg" />
+                      )}
                     </div>
+                    <p className="text-[10px] text-darkText/60">
+                      {logoForm.light_logo_url ? "شعار مخصص للخلفيات الفاتحة" : "يتم استخدام الشعار الأساسي"}
+                    </p>
                   </div>
-
-                  {/* Light Logo URL / Upload (Optional) */}
-                  <div className="space-y-2 pt-2 border-t border-graySoft">
-                    <label className="block font-bold text-darkText">
-                      صورة الشعار للوضع الفاتح (اختياري)
-                    </label>
-                    <input
-                      type="text"
-                      value={logoForm.light_logo_url}
-                      onChange={(e) => setLogoForm({ ...logoForm, light_logo_url: e.target.value })}
-                      placeholder="اتركه فارغاً لاستخدام نفس الشعار الأساسي"
-                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
-                      dir="ltr"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-graySoft">
-                    <button
-                      type="submit"
-                      disabled={savingLogo}
-                      className="flex-1 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold text-xs shadow-gold transition-colors disabled:opacity-50"
-                    >
-                      {savingLogo ? "جاري حفظ الشعار..." : "حفظ الشعار وتطبيقه في جميع الصفحات"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* 7.2. HERO & AMEER AL OUDH MANAGEMENT */}
-          {activeTab === "hero" && (
-            <div className="space-y-6 max-w-5xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                    تخصيص واجهة الهيرو وبطاقة أمير العود الملكية
-                  </h1>
-                  <p className="text-xs text-darkText/60 mt-1">
-                    تحكم في الصورة الرئيسية، النصوص الترويجية، وعناصر بطاقة عطر أمير العود في الصفحة الرئيسية.
-                  </p>
                 </div>
 
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
-                >
-                  <span>معاينة في المتجر</span>
-                  <span>↗</span>
-                </a>
-              </div>
+                {/* Form */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
+                  <form onSubmit={handleSaveLogo} className="space-y-6 text-xs">
+                    {/* Main Logo URL / Upload */}
+                    <div className="space-y-2">
+                      <label className="block font-bold text-darkText">
+                        صورة الشعار الأساسية (للخلفيات الداكنة والوضع العام)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={logoForm.logo_url}
+                          onChange={(e) => setLogoForm({ ...logoForm, logo_url: e.target.value })}
+                          placeholder="مثال: /images/logo.png أو رابط صورة مباشر"
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
+                          dir="ltr"
+                        />
+                        {logoForm.logo_url && (
+                          <button
+                            type="button"
+                            onClick={() => setLogoForm({ ...logoForm, logo_url: "" })}
+                            className="px-3 py-2 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold"
+                          >
+                            مسح
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-beige border border-gold/30 hover:bg-gold hover:text-burgundy-dark font-bold text-xs transition-colors shadow-2xs">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploadingLogo ? "جاري رفع الشعار..." : "رفع صورة الشعار من الجهاز (Supabase Storage)"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleLogoUpload(e, false)}
+                            className="hidden"
+                            disabled={uploadingLogo}
+                          />
+                        </label>
+                        <span className="text-[11px] text-darkText/50">يُفضل استخدام صورة بصيغة PNG وبخلفية شفافة</span>
+                      </div>
+                    </div>
 
-              {/* Live Preview of the Hero Card */}
-              <div className="p-6 rounded-3xl bg-gradient-to-br from-[#2D0A14] via-[#1F070E] to-[#120307] border border-gold/40 shadow-2xl text-cream space-y-4">
-                <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-                  <span className="text-xs font-bold text-gold-soft flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-gold" />
-                    <span>المعاينة الحية لبطاقة أمير العود (Live Card Preview)</span>
-                  </span>
-                  <span className="text-[11px] text-cream/50">تتحدث تلقائياً مع الكتابة</span>
+                    {/* Light Logo URL / Upload (Optional) */}
+                    <div className="space-y-2 pt-2 border-t border-graySoft">
+                      <label className="block font-bold text-darkText">
+                        صورة الشعار للوضع الفاتح (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={logoForm.light_logo_url}
+                        onChange={(e) => setLogoForm({ ...logoForm, light_logo_url: e.target.value })}
+                        placeholder="اتركه فارغاً لاستخدام نفس الشعار الأساسي"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-4 border-t border-graySoft">
+                      <button
+                        type="submit"
+                        disabled={savingLogo}
+                        className="flex-1 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold text-xs shadow-gold transition-colors disabled:opacity-50"
+                      >
+                        {savingLogo ? "جاري حفظ الشعار..." : "حفظ الشعار وتطبيقه في جميع الصفحات"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* 7.2. HERO & AMEER AL OUDH MANAGEMENT */}
+            {activeTab === "hero" && (
+              <div className="space-y-6 max-w-5xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                      تخصيص واجهة الهيرو وبطاقة أمير العود الملكية
+                    </h1>
+                    <p className="text-xs text-darkText/60 mt-1">
+                      تحكم في الصورة الرئيسية، النصوص الترويجية، وعناصر بطاقة عطر أمير العود في الصفحة الرئيسية.
+                    </p>
+                  </div>
+
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
+                  >
+                    <span>معاينة في المتجر</span>
+                    <span>↗</span>
+                  </a>
                 </div>
 
-                <div className="max-w-md mx-auto relative rounded-3xl p-5 border border-gold/30 bg-black/40 backdrop-blur-md shadow-luxury text-center space-y-3">
-                  <div className="inline-block px-3 py-1 rounded-full bg-gold/20 text-gold-soft text-[11px] font-bold border border-gold/30">
-                    {heroForm.badge_text || "مجموعة أرياف الفاخرة"}
+                {/* Live Preview of the Hero Card */}
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-[#2D0A14] via-[#1F070E] to-[#120307] border border-gold/40 shadow-2xl text-cream space-y-4">
+                  <div className="flex items-center justify-between border-b border-gold/20 pb-3">
+                    <span className="text-xs font-bold text-gold-soft flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-gold" />
+                      <span>المعاينة الحية لبطاقة أمير العود (Live Card Preview)</span>
+                    </span>
+                    <span className="text-[11px] text-cream/50">تتحدث تلقائياً مع الكتابة</span>
                   </div>
-                  <h2 className="text-xl font-bold font-alexandria text-gold-light">
-                    {heroForm.headline_line1} <br />
-                    <span className="text-cream">{heroForm.headline_line2}</span>
-                  </h2>
 
-                  {/* Perfume Card Preview */}
-                  <div className="relative rounded-2xl overflow-hidden border border-gold/40 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 mt-4">
-                    <img
-                      src={heroForm.image_url}
-                      alt="معاينة أمير العود"
-                      className="w-full h-48 object-cover rounded-xl mx-auto shadow-inner"
-                    />
-                    <div className="mt-3 text-right">
-                      <span className="text-[10px] text-gold-soft font-bold block">{heroForm.card_origin}</span>
-                      <h3 className="text-lg font-black text-cream font-alexandria">{heroForm.card_title}</h3>
-                      <p className="text-xs text-cream/80 line-clamp-2 mt-1">{heroForm.card_subtitle}</p>
-                      <div className="mt-3 pt-2 border-t border-gold/20 flex items-center justify-between">
-                        <span className="text-[11px] text-gold font-serif italic">"{heroForm.card_footer_text}"</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold text-burgundy-dark font-bold">صلالة، عمان</span>
+                  <div className="max-w-md mx-auto relative rounded-3xl p-5 border border-gold/30 bg-black/40 backdrop-blur-md shadow-luxury text-center space-y-3">
+                    <div className="inline-block px-3 py-1 rounded-full bg-gold/20 text-gold-soft text-[11px] font-bold border border-gold/30">
+                      {heroForm.badge_text || "مجموعة أرياف الفاخرة"}
+                    </div>
+                    <h2 className="text-xl font-bold font-alexandria text-gold-light">
+                      {heroForm.headline_line1} <br />
+                      <span className="text-cream">{heroForm.headline_line2}</span>
+                    </h2>
+
+                    {/* Perfume Card Preview */}
+                    <div className="relative rounded-2xl overflow-hidden border border-gold/40 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 mt-4">
+                      <img
+                        src={heroForm.image_url}
+                        alt="معاينة أمير العود"
+                        className="w-full h-48 object-cover rounded-xl mx-auto shadow-inner"
+                      />
+                      <div className="mt-3 text-right">
+                        <span className="text-[10px] text-gold-soft font-bold block">{heroForm.card_origin}</span>
+                        <h3 className="text-lg font-black text-cream font-alexandria">{heroForm.card_title}</h3>
+                        <p className="text-xs text-cream/80 line-clamp-2 mt-1">{heroForm.card_subtitle}</p>
+                        <div className="mt-3 pt-2 border-t border-gold/20 flex items-center justify-between">
+                          <span className="text-[11px] text-gold font-serif italic">"{heroForm.card_footer_text}"</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold text-burgundy-dark font-bold">صلالة، عمان</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Edit Form */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
-                <form onSubmit={handleSaveHero} className="space-y-6 text-xs">
-                  {/* Perfume Image */}
-                  <div className="space-y-2">
-                    <label className="block font-bold text-darkText">
-                      صورة عطر أمير العود والواجهة الرئيسية (Hero Perfume Image) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex gap-2">
+                {/* Edit Form */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
+                  <form onSubmit={handleSaveHero} className="space-y-6 text-xs">
+                    {/* Perfume Image */}
+                    <div className="space-y-2">
+                      <label className="block font-bold text-darkText">
+                        صورة عطر أمير العود والواجهة الرئيسية (Hero Perfume Image) <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={heroForm.image_url}
+                          onChange={(e) => setHeroForm({ ...heroForm, image_url: e.target.value })}
+                          placeholder="مثال: /images/hero-perfume.jpg أو رابط مباشر"
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-beige border border-gold/30 hover:bg-gold hover:text-burgundy-dark font-bold text-xs transition-colors shadow-2xs">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploadingHeroImg ? "جاري رفع الصورة..." : "رفع صورة من الجهاز إلى Supabase Storage"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleHeroImageUpload}
+                            className="hidden"
+                            disabled={uploadingHeroImg}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Headlines */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-darkText mb-1">شارة التميز العلوية (Badge)</label>
+                        <input
+                          type="text"
+                          value={heroForm.badge_text}
+                          onChange={(e) => setHeroForm({ ...heroForm, badge_text: e.target.value })}
+                          placeholder="مجموعة أرياف الفاخرة"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-darkText mb-1">مصدر ومنشأ العطر (Origin)</label>
+                        <input
+                          type="text"
+                          value={heroForm.card_origin}
+                          onChange={(e) => setHeroForm({ ...heroForm, card_origin: e.target.value })}
+                          placeholder="ظفار، سلطنة عُمان"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-darkText mb-1">العنوان الرئيسي (السطر الأول)</label>
+                        <input
+                          type="text"
+                          value={heroForm.headline_line1}
+                          onChange={(e) => setHeroForm({ ...heroForm, headline_line1: e.target.value })}
+                          placeholder="أصالة العود الظفاري"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-darkText mb-1">العنوان الرئيسي (السطر الثاني)</label>
+                        <input
+                          type="text"
+                          value={heroForm.headline_line2}
+                          onChange={(e) => setHeroForm({ ...heroForm, headline_line2: e.target.value })}
+                          placeholder="وفخامة اللبان الحوجري"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-darkText mb-1">النص الوصفي للعلامة التجارية في الهيرو</label>
+                      <textarea
+                        rows={2}
+                        value={heroForm.description}
+                        onChange={(e) => setHeroForm({ ...heroForm, description: e.target.value })}
+                        placeholder="نبتكر أندر وأرقى التركيبات العطرية المستوحاة من سحر صلالة وجبال ظفار..."
+                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream resize-none"
+                      />
+                    </div>
+
+                    {/* Ameer Al Oudh Card Specifics */}
+                    <div className="p-4 rounded-2xl bg-beige/40 border border-gold/30 space-y-4">
+                      <h4 className="font-bold text-burgundy text-sm">بيانات بطاقة عطر "أمير العود" المميزة</h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block font-bold text-darkText mb-1">اسم العطر في البطاقة</label>
+                          <input
+                            type="text"
+                            value={heroForm.card_title}
+                            onChange={(e) => setHeroForm({ ...heroForm, card_title: e.target.value })}
+                            placeholder="أمير العود"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-darkText mb-1">العبارة الختامية بالبطاقة</label>
+                          <input
+                            type="text"
+                            value={heroForm.card_footer_text}
+                            onChange={(e) => setHeroForm({ ...heroForm, card_footer_text: e.target.value })}
+                            placeholder="رشة عطر من صلالة... إلى روحك"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white font-serif"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-darkText mb-1">الوصف الفرعي ومكونات عطر البطاقة</label>
+                        <input
+                          type="text"
+                          value={heroForm.card_subtitle}
+                          onChange={(e) => setHeroForm({ ...heroForm, card_subtitle: e.target.value })}
+                          placeholder="خلاصة دهن العود المعتق واللبان الحوجري الفاخر"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4 border-t border-graySoft">
+                      <button
+                        type="submit"
+                        disabled={savingHero}
+                        className="flex-1 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold text-xs shadow-gold transition-colors disabled:opacity-50"
+                      >
+                        {savingHero ? "جاري حفظ وتحديث الهيرو..." : "حفظ التغييرات وتحديث واجهة أمير العود فوراً"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* 7.3. STORE BANK ACCOUNTS MANAGEMENT */}
+            {activeTab === "banks" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                      الحسابات البنكية العمانية للمتجر
+                    </h1>
+                    <p className="text-xs text-darkText/60 mt-1">
+                      إدارة البنوك العمانية (بنك مسقط، بنك ظفار، بنك نزوى، صحار الدولي، إلخ) الظاهرة للعملاء في صفحة إتمام الطلب للتحويل المباشر.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingBank(null);
+                      setShowBankModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-burgundy text-cream font-bold text-xs flex items-center gap-2 shadow-gold"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>إضافة حساب بنكي جديد</span>
+                  </button>
+                </div>
+
+                {/* Bank Accounts Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {bankAccountsList.length === 0 ? (
+                    <div className="col-span-full py-12 text-center bg-white rounded-3xl border border-gold/25 p-8 text-darkText/50">
+                      <Landmark className="w-12 h-12 mx-auto text-gold mb-3 opacity-60" />
+                      <p className="font-bold text-burgundy">لا توجد حسابات بنكية مضافة حالياً</p>
+                      <p className="text-xs mt-1">انقر على زر "إضافة حساب بنكي جديد" لإضافة بيانات البنك الخاص بك.</p>
+                    </div>
+                  ) : (
+                    bankAccountsList.map((bank) => (
+                      <div
+                        key={bank.id}
+                        className={`rounded-3xl p-6 border transition-all duration-300 relative shadow-card ${bank.is_active
+                            ? "bg-white border-gold/40 hover:shadow-luxury"
+                            : "bg-gray-50/80 border-gray-200 opacity-60"
+                          }`}
+                      >
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-cream border border-gold/30 p-2 flex items-center justify-center flex-shrink-0 shadow-xs">
+                              {bank.bank_logo_url ? (
+                                <img
+                                  src={bank.bank_logo_url}
+                                  alt={bank.bank_name_ar}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <Landmark className="w-6 h-6 text-burgundy" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-black text-sm text-burgundy">{bank.bank_name_ar}</h3>
+                              <p className="text-[10px] text-darkText/60 font-serif">{bank.bank_name_en}</p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${bank.is_active
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-red-100 text-red-800"
+                              }`}
+                          >
+                            {bank.is_active ? "نشط" : "معطل"}
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="space-y-2.5 text-xs bg-cream/50 rounded-2xl p-4 border border-gold/20">
+                          <div>
+                            <span className="text-[10px] text-darkText/60 block">اسم صاحب الحساب:</span>
+                            <span className="font-bold text-darkText">{bank.account_name}</span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-darkText/60 block">رقم الحساب:</span>
+                            <span className="font-mono font-bold text-burgundy" dir="ltr">
+                              {bank.account_number}
+                            </span>
+                          </div>
+
+                          {bank.iban && (
+                            <div>
+                              <span className="text-[10px] text-darkText/60 block">رقم الآيبان (IBAN):</span>
+                              <span className="font-mono text-[11px] text-darkText font-bold break-all" dir="ltr">
+                                {bank.iban}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-between pt-4 mt-4 border-t border-graySoft">
+                          <button
+                            onClick={() => handleToggleBankActive(bank.id, bank.is_active)}
+                            className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-colors ${bank.is_active
+                                ? "border-amber-200 text-amber-700 hover:bg-amber-50"
+                                : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                              }`}
+                          >
+                            {bank.is_active ? "تعطيل" : "تفعيل"}
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingBank(bank);
+                                setShowBankModal(true);
+                              }}
+                              className="p-2 rounded-xl text-gold-dark hover:bg-beige transition-colors"
+                              title="تعديل الحساب"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBank(bank.id)}
+                              className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+                              title="حذف الحساب"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Bank Modal */}
+                {showBankModal && (
+                  <BankModal
+                    bank={editingBank}
+                    onClose={() => {
+                      setShowBankModal(false);
+                      setEditingBank(null);
+                    }}
+                    onSave={handleSaveBank}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* 7.5. ANNOUNCEMENT BAR */}
+            {activeTab === "announcement" && (
+              <div className="space-y-6 max-w-4xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                      إدارة وتخصيص الشريط الإعلاني العلوي
+                    </h1>
+                    <p className="text-xs text-darkText/60 mt-1">
+                      تحكم كامل في ظهور ونصوص وألوان الشريط الإعلاني الظاهر أعلى الموقع مباشرة.
+                    </p>
+                  </div>
+
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
+                  >
+                    <span>معاينة في المتجر</span>
+                    <span>↗</span>
+                  </a>
+                </div>
+
+                {/* Live Interactive Preview Box */}
+                <div className="bg-white rounded-3xl p-6 border border-gold/30 shadow-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-darkText/80 flex items-center gap-2">
+                      <span>المعاينة الحية (Live Preview):</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${announcementForm.enabled
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-red-100 text-red-800"
+                          }`}
+                      >
+                        {announcementForm.enabled ? "ظاهر ونشط حالياً" : "معطّل ومخفي"}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-darkText/40">كما يظهر للزوار أعلى المتجر تماماً</span>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-gold/25 shadow-inner">
+                    {announcementForm.enabled ? (
+                      <div
+                        style={{
+                          backgroundColor: announcementForm.bg_color,
+                          color: announcementForm.text_color,
+                        }}
+                        className="w-full py-2.5 px-4 text-center text-xs font-semibold tracking-wide transition-colors duration-200"
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span>{announcementForm.text || "اكتب نص الإعلان هنا..."}</span>
+                          {announcementForm.link && (
+                            <span className="text-[10px] opacity-75 underline">({announcementForm.link})</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full py-5 text-center text-xs text-darkText/40 bg-gray-50 italic">
+                        الشريط الإعلاني معطّل ولن يظهر للزوار في الوقت الحالي
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Settings Form */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
+                  <form onSubmit={handleSaveAnnouncement} className="space-y-6 text-xs">
+                    {/* Toggle Enabled */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FAF7F2] border border-gold/25">
+                      <div>
+                        <h4 className="font-bold text-sm text-burgundy">تفعيل ظهور الشريط الإعلاني</h4>
+                        <p className="text-[11px] text-darkText/60 mt-0.5">
+                          عند التفعيل، سيظهر الشريط أعلى الهيدر في كافة صفحات المتجر تلقائياً.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={announcementForm.enabled}
+                          onChange={(e) =>
+                            setAnnouncementForm({ ...announcementForm, enabled: e.target.checked })
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Announcement Text */}
+                    <div>
+                      <label className="block font-bold text-darkText mb-1.5">
+                        نص الإعلان <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         required
-                        value={heroForm.image_url}
-                        onChange={(e) => setHeroForm({ ...heroForm, image_url: e.target.value })}
-                        placeholder="مثال: /images/hero-perfume.jpg أو رابط مباشر"
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs focus:outline-none focus:border-burgundy"
-                        dir="ltr"
+                        value={announcementForm.text}
+                        onChange={(e) =>
+                          setAnnouncementForm({ ...announcementForm, text: e.target.value })
+                        }
+                        placeholder="مثال: رشة عطر من صلالة... لروحك | شحن مجاني للطلبات فوق 350 ريال"
+                        className="w-full px-4 py-3 rounded-xl border border-gold/30 bg-cream text-darkText font-medium focus:outline-none focus:border-burgundy transition-colors"
                       />
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-beige border border-gold/30 hover:bg-gold hover:text-burgundy-dark font-bold text-xs transition-colors shadow-2xs">
-                        <Upload className="w-4 h-4" />
-                        <span>{uploadingHeroImg ? "جاري رفع الصورة..." : "رفع صورة من الجهاز إلى Supabase Storage"}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleHeroImageUpload}
-                          className="hidden"
-                          disabled={uploadingHeroImg}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Headlines */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block font-bold text-darkText mb-1">شارة التميز العلوية (Badge)</label>
-                      <input
-                        type="text"
-                        value={heroForm.badge_text}
-                        onChange={(e) => setHeroForm({ ...heroForm, badge_text: e.target.value })}
-                        placeholder="مجموعة أرياف الفاخرة"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-darkText mb-1">مصدر ومنشأ العطر (Origin)</label>
-                      <input
-                        type="text"
-                        value={heroForm.card_origin}
-                        onChange={(e) => setHeroForm({ ...heroForm, card_origin: e.target.value })}
-                        placeholder="ظفار، سلطنة عُمان"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block font-bold text-darkText mb-1">العنوان الرئيسي (السطر الأول)</label>
-                      <input
-                        type="text"
-                        value={heroForm.headline_line1}
-                        onChange={(e) => setHeroForm({ ...heroForm, headline_line1: e.target.value })}
-                        placeholder="أصالة العود الظفاري"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-darkText mb-1">العنوان الرئيسي (السطر الثاني)</label>
-                      <input
-                        type="text"
-                        value={heroForm.headline_line2}
-                        onChange={(e) => setHeroForm({ ...heroForm, headline_line2: e.target.value })}
-                        placeholder="وفخامة اللبان الحوجري"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-darkText mb-1">النص الوصفي للعلامة التجارية في الهيرو</label>
-                    <textarea
-                      rows={2}
-                      value={heroForm.description}
-                      onChange={(e) => setHeroForm({ ...heroForm, description: e.target.value })}
-                      placeholder="نبتكر أندر وأرقى التركيبات العطرية المستوحاة من سحر صلالة وجبال ظفار..."
-                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream resize-none"
-                    />
-                  </div>
-
-                  {/* Ameer Al Oudh Card Specifics */}
-                  <div className="p-4 rounded-2xl bg-beige/40 border border-gold/30 space-y-4">
-                    <h4 className="font-bold text-burgundy text-sm">بيانات بطاقة عطر "أمير العود" المميزة</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block font-bold text-darkText mb-1">اسم العطر في البطاقة</label>
-                        <input
-                          type="text"
-                          value={heroForm.card_title}
-                          onChange={(e) => setHeroForm({ ...heroForm, card_title: e.target.value })}
-                          placeholder="أمير العود"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-bold text-darkText mb-1">العبارة الختامية بالبطاقة</label>
-                        <input
-                          type="text"
-                          value={heroForm.card_footer_text}
-                          onChange={(e) => setHeroForm({ ...heroForm, card_footer_text: e.target.value })}
-                          placeholder="رشة عطر من صلالة... إلى روحك"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white font-serif"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-darkText mb-1">الوصف الفرعي ومكونات عطر البطاقة</label>
-                      <input
-                        type="text"
-                        value={heroForm.card_subtitle}
-                        onChange={(e) => setHeroForm({ ...heroForm, card_subtitle: e.target.value })}
-                        placeholder="خلاصة دهن العود المعتق واللبان الحوجري الفاخر"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-graySoft">
-                    <button
-                      type="submit"
-                      disabled={savingHero}
-                      className="flex-1 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold text-xs shadow-gold transition-colors disabled:opacity-50"
-                    >
-                      {savingHero ? "جاري حفظ وتحديث الهيرو..." : "حفظ التغييرات وتحديث واجهة أمير العود فوراً"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* 7.3. STORE BANK ACCOUNTS MANAGEMENT */}
-          {activeTab === "banks" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                    الحسابات البنكية العمانية للمتجر
-                  </h1>
-                  <p className="text-xs text-darkText/60 mt-1">
-                    إدارة البنوك العمانية (بنك مسقط، بنك ظفار، بنك نزوى، صحار الدولي، إلخ) الظاهرة للعملاء في صفحة إتمام الطلب للتحويل المباشر.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setEditingBank(null);
-                    setShowBankModal(true);
-                  }}
-                  className="px-4 py-2.5 rounded-xl bg-burgundy text-cream font-bold text-xs flex items-center gap-2 shadow-gold"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>إضافة حساب بنكي جديد</span>
-                </button>
-              </div>
-
-              {/* Bank Accounts Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {bankAccountsList.length === 0 ? (
-                  <div className="col-span-full py-12 text-center bg-white rounded-3xl border border-gold/25 p-8 text-darkText/50">
-                    <Landmark className="w-12 h-12 mx-auto text-gold mb-3 opacity-60" />
-                    <p className="font-bold text-burgundy">لا توجد حسابات بنكية مضافة حالياً</p>
-                    <p className="text-xs mt-1">انقر على زر "إضافة حساب بنكي جديد" لإضافة بيانات البنك الخاص بك.</p>
-                  </div>
-                ) : (
-                  bankAccountsList.map((bank) => (
-                    <div
-                      key={bank.id}
-                      className={`rounded-3xl p-6 border transition-all duration-300 relative shadow-card ${
-                        bank.is_active
-                          ? "bg-white border-gold/40 hover:shadow-luxury"
-                          : "bg-gray-50/80 border-gray-200 opacity-60"
-                      }`}
-                    >
-                      {/* Header */}
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-cream border border-gold/30 p-2 flex items-center justify-center flex-shrink-0 shadow-xs">
-                            {bank.bank_logo_url ? (
-                              <img
-                                src={bank.bank_logo_url}
-                                alt={bank.bank_name_ar}
-                                className="w-full h-full object-contain"
-                              />
-                            ) : (
-                              <Landmark className="w-6 h-6 text-burgundy" />
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-black text-sm text-burgundy">{bank.bank_name_ar}</h3>
-                            <p className="text-[10px] text-darkText/60 font-serif">{bank.bank_name_en}</p>
-                          </div>
-                        </div>
-
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            bank.is_active
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {bank.is_active ? "نشط" : "معطل"}
-                        </span>
-                      </div>
-
-                      {/* Details */}
-                      <div className="space-y-2.5 text-xs bg-cream/50 rounded-2xl p-4 border border-gold/20">
-                        <div>
-                          <span className="text-[10px] text-darkText/60 block">اسم صاحب الحساب:</span>
-                          <span className="font-bold text-darkText">{bank.account_name}</span>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] text-darkText/60 block">رقم الحساب:</span>
-                          <span className="font-mono font-bold text-burgundy" dir="ltr">
-                            {bank.account_number}
-                          </span>
-                        </div>
-
-                        {bank.iban && (
-                          <div>
-                            <span className="text-[10px] text-darkText/60 block">رقم الآيبان (IBAN):</span>
-                            <span className="font-mono text-[11px] text-darkText font-bold break-all" dir="ltr">
-                              {bank.iban}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-4 mt-4 border-t border-graySoft">
-                        <button
-                          onClick={() => handleToggleBankActive(bank.id, bank.is_active)}
-                          className={`text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-colors ${
-                            bank.is_active
-                              ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                              : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                        >
-                          {bank.is_active ? "تعطيل" : "تفعيل"}
-                        </button>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingBank(bank);
-                              setShowBankModal(true);
-                            }}
-                            className="p-2 rounded-xl text-gold-dark hover:bg-beige transition-colors"
-                            title="تعديل الحساب"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBank(bank.id)}
-                            className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
-                            title="حذف الحساب"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Bank Modal */}
-              {showBankModal && (
-                <BankModal
-                  bank={editingBank}
-                  onClose={() => {
-                    setShowBankModal(false);
-                    setEditingBank(null);
-                  }}
-                  onSave={handleSaveBank}
-                />
-              )}
-            </div>
-          )}
-
-          {/* 7.5. ANNOUNCEMENT BAR */}
-          {activeTab === "announcement" && (
-            <div className="space-y-6 max-w-4xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                    إدارة وتخصيص الشريط الإعلاني العلوي
-                  </h1>
-                  <p className="text-xs text-darkText/60 mt-1">
-                    تحكم كامل في ظهور ونصوص وألوان الشريط الإعلاني الظاهر أعلى الموقع مباشرة.
-                  </p>
-                </div>
-
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gold/40 text-burgundy text-xs font-bold hover:bg-beige transition-colors shadow-2xs self-start sm:self-auto"
-                >
-                  <span>معاينة في المتجر</span>
-                  <span>↗</span>
-                </a>
-              </div>
-
-              {/* Live Interactive Preview Box */}
-              <div className="bg-white rounded-3xl p-6 border border-gold/30 shadow-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-darkText/80 flex items-center gap-2">
-                    <span>المعاينة الحية (Live Preview):</span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        announcementForm.enabled
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {announcementForm.enabled ? "ظاهر ونشط حالياً" : "معطّل ومخفي"}
-                    </span>
-                  </span>
-                  <span className="text-[11px] text-darkText/40">كما يظهر للزوار أعلى المتجر تماماً</span>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-gold/25 shadow-inner">
-                  {announcementForm.enabled ? (
-                    <div
-                      style={{
-                        backgroundColor: announcementForm.bg_color,
-                        color: announcementForm.text_color,
-                      }}
-                      className="w-full py-2.5 px-4 text-center text-xs font-semibold tracking-wide transition-colors duration-200"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <span>{announcementForm.text || "اكتب نص الإعلان هنا..."}</span>
-                        {announcementForm.link && (
-                          <span className="text-[10px] opacity-75 underline">({announcementForm.link})</span>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full py-5 text-center text-xs text-darkText/40 bg-gray-50 italic">
-                      الشريط الإعلاني معطّل ولن يظهر للزوار في الوقت الحالي
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Settings Form */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gold/30 shadow-card">
-                <form onSubmit={handleSaveAnnouncement} className="space-y-6 text-xs">
-                  {/* Toggle Enabled */}
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FAF7F2] border border-gold/25">
-                    <div>
-                      <h4 className="font-bold text-sm text-burgundy">تفعيل ظهور الشريط الإعلاني</h4>
-                      <p className="text-[11px] text-darkText/60 mt-0.5">
-                        عند التفعيل، سيظهر الشريط أعلى الهيدر في كافة صفحات المتجر تلقائياً.
+                      <p className="text-[10px] text-darkText/50 mt-1">
+                        النص الذي يراه العميل فور دخول المتجر (عروض خاصة، خصومات، أو رسائل ترحيبية).
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={announcementForm.enabled}
-                        onChange={(e) =>
-                          setAnnouncementForm({ ...announcementForm, enabled: e.target.checked })
-                        }
-                        className="sr-only peer"
-                      />
-                      <div className="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
 
-                  {/* Announcement Text */}
+                    {/* Announcement Link */}
+                    <div>
+                      <label className="block font-bold text-darkText mb-1.5">
+                        رابط النقر (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={announcementForm.link}
+                        onChange={(e) =>
+                          setAnnouncementForm({ ...announcementForm, link: e.target.value })
+                        }
+                        placeholder="مثال: /shop أو /shop?sale=1 أو رابط ترويجي"
+                        className="w-full px-4 py-3 rounded-xl border border-gold/30 bg-cream text-darkText font-mono text-left focus:outline-none focus:border-burgundy transition-colors"
+                        dir="ltr"
+                      />
+                      <p className="text-[10px] text-darkText/50 mt-1">
+                        عند النقر على الشريط سيتم توجيه العميل إلى هذه الصفحة (اتركه فارغاً إن لم ترغب برابط).
+                      </p>
+                    </div>
+
+                    {/* Color Pickers */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                      {/* Background Color */}
+                      <div className="space-y-2">
+                        <label className="block font-bold text-darkText">
+                          لون خلفية الشريط (Background)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={announcementForm.bg_color}
+                            onChange={(e) =>
+                              setAnnouncementForm({ ...announcementForm, bg_color: e.target.value })
+                            }
+                            className="w-12 h-12 rounded-xl cursor-pointer border border-gold/30 p-1 bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={announcementForm.bg_color}
+                            onChange={(e) =>
+                              setAnnouncementForm({ ...announcementForm, bg_color: e.target.value })
+                            }
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs uppercase"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          <span className="text-[10px] text-darkText/60">ألوان سريعة:</span>
+                          {[
+                            { name: "عودي ملكي", hex: "#3B0716" },
+                            { name: "أخضر زمردي", hex: "#15803D" },
+                            { name: "أسود فاخر", hex: "#111827" },
+                            { name: "برونزي عتيق", hex: "#78350F" },
+                            { name: "كحلي هادئ", hex: "#1E293B" },
+                          ].map((p) => (
+                            <button
+                              type="button"
+                              key={p.hex}
+                              onClick={() =>
+                                setAnnouncementForm({ ...announcementForm, bg_color: p.hex })
+                              }
+                              style={{ backgroundColor: p.hex }}
+                              title={p.name}
+                              className="w-5 h-5 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-2xs"
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Text Color */}
+                      <div className="space-y-2">
+                        <label className="block font-bold text-darkText">
+                          لون النص (Text Color)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={announcementForm.text_color}
+                            onChange={(e) =>
+                              setAnnouncementForm({ ...announcementForm, text_color: e.target.value })
+                            }
+                            className="w-12 h-12 rounded-xl cursor-pointer border border-gold/30 p-1 bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={announcementForm.text_color}
+                            onChange={(e) =>
+                              setAnnouncementForm({ ...announcementForm, text_color: e.target.value })
+                            }
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs uppercase"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          <span className="text-[10px] text-darkText/60">ألوان سريعة:</span>
+                          {[
+                            { name: "كريمي فاخر", hex: "#FFFDF8" },
+                            { name: "ذهبي ناعم", hex: "#FDE68A" },
+                            { name: "أبيض ناصع", hex: "#FFFFFF" },
+                            { name: "ذهبي عتيق", hex: "#C9A45C" },
+                          ].map((p) => (
+                            <button
+                              type="button"
+                              key={p.hex}
+                              onClick={() =>
+                                setAnnouncementForm({ ...announcementForm, text_color: p.hex })
+                              }
+                              style={{ backgroundColor: p.hex }}
+                              title={p.name}
+                              className="w-5 h-5 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-2xs"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Submit buttons */}
+                    <div className="pt-4 border-t border-gold/20 flex flex-col sm:flex-row gap-3">
+                      <button
+                        type="submit"
+                        disabled={savingAnnouncement}
+                        className="px-8 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold shadow-gold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <CheckCircle className="w-4 h-4 text-gold-soft" />
+                        <span>{savingAnnouncement ? "جارِ الحفظ..." : "حفظ وتطبيق التعديلات فوراً"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAnnouncementForm({
+                            enabled: true,
+                            text: "رشة عطر من صلالة... لروحك",
+                            link: "/shop",
+                            bg_color: "#3B0716",
+                            text_color: "#FFFDF8",
+                          })
+                        }
+                        className="px-5 py-3.5 rounded-xl border border-gold/30 text-darkText/70 hover:bg-beige text-xs font-semibold transition-colors"
+                      >
+                        استعادة النص الافتراضي
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* 7.8. BANNERS TAB */}
+            {activeTab === "banners" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <label className="block font-bold text-darkText mb-1.5">
-                      نص الإعلان <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={announcementForm.text}
-                      onChange={(e) =>
-                        setAnnouncementForm({ ...announcementForm, text: e.target.value })
-                      }
-                      placeholder="مثال: رشة عطر من صلالة... لروحك | شحن مجاني للطلبات فوق 350 ريال"
-                      className="w-full px-4 py-3 rounded-xl border border-gold/30 bg-cream text-darkText font-medium focus:outline-none focus:border-burgundy transition-colors"
-                    />
-                    <p className="text-[10px] text-darkText/50 mt-1">
-                      النص الذي يراه العميل فور دخول المتجر (عروض خاصة، خصومات، أو رسائل ترحيبية).
+                    <h1 className="text-2xl font-black text-burgundy font-alexandria">
+                      البانرات والحملات الترويجية
+                    </h1>
+                    <p className="text-xs text-darkText/60 mt-1">
+                      إدارة البانرات والشريط الإعلاني الترويجي في المتجر
                     </p>
                   </div>
+                  <button
+                    onClick={() => setActiveTab("announcement")}
+                    className="px-4 py-2.5 rounded-xl bg-burgundy text-cream font-bold text-xs flex items-center gap-2 shadow-sm"
+                  >
+                    <Megaphone className="w-4 h-4 text-gold-soft" />
+                    <span>تعديل الشريط الإعلاني</span>
+                  </button>
+                </div>
 
-                  {/* Announcement Link */}
+                {/* Announcement Quick Callout */}
+                <div className="p-6 rounded-3xl bg-gradient-to-r from-burgundy to-burgundy-dark text-cream border border-gold/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-luxury">
+                  <div className="space-y-1">
+                    <span className="text-xs text-gold-soft font-bold">الشريط الإعلاني العلوي الفوري</span>
+                    <h3 className="text-lg font-bold">{announcementForm.text}</h3>
+                    <p className="text-xs text-cream/70">
+                      الحالة: {announcementForm.enabled ? "مفعّل ويظهر في أعلى المتجر" : "معطّل حالياً"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("announcement")}
+                    className="px-5 py-2.5 rounded-xl bg-gold text-burgundy-dark font-bold text-xs hover:bg-white transition-colors"
+                  >
+                    التحكم في الشريط ←
+                  </button>
+                </div>
+
+                {/* Banners List */}
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">العنوان</th>
+                        <th>الترتيب</th>
+                        <th>الرابط</th>
+                        <th>الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {banners.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-darkText/40 italic">
+                            لا توجد بانرات إضافية حالياً، يمكنك تفعيل وتعديل الشريط الإعلاني العلوي مباشرة.
+                          </td>
+                        </tr>
+                      ) : (
+                        banners.map((b) => (
+                          <tr key={b.id} className="hover:bg-beige/30">
+                            <td className="py-3 font-bold text-burgundy">{b.title_ar}</td>
+                            <td>{b.display_order}</td>
+                            <td className="font-mono text-darkText/60">{b.button_link || "-"}</td>
+                            <td>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${b.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                                  }`}
+                              >
+                                {b.is_active ? "نشط" : "معطل"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 8. REVIEWS MODERATION */}
+            {activeTab === "reviews" && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-black text-burgundy">تقييمات العملاء والمراجعات</h1>
+                <div className="space-y-4">
+                  {reviews.map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-5 rounded-2xl bg-white border border-gold/25 shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-sm text-burgundy">
+                            {r.user_name || "عميل"}
+                          </span>
+                          <span className="text-amber-500">★ {r.rating}</span>
+                          <span className="text-xs text-darkText/50">على عطر: {r.product?.name_ar}</span>
+                        </div>
+                        <p className="text-xs text-darkText/80 italic">"{r.comment}"</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${r.status === "approved"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : r.status === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                        >
+                          {r.status === "approved"
+                            ? "معتمد"
+                            : r.status === "rejected"
+                              ? "مرفوض"
+                              : "بانتظار الموافقة"}
+                        </span>
+
+                        {r.status !== "approved" && (
+                          <button
+                            onClick={() => handleUpdateReviewStatus(r.id, "approved")}
+                            className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold"
+                          >
+                            اعتماد
+                          </button>
+                        )}
+                        {r.status !== "rejected" && (
+                          <button
+                            onClick={() => handleUpdateReviewStatus(r.id, "rejected")}
+                            className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-bold"
+                          >
+                            رفض
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* REPORTS */}
+            {activeTab === "reports" && (
+              <AdminReports orders={orders} products={products} customers={customers} />
+            )}
+
+            {/* 9. SETTINGS & WHATSAPP */}
+            {(activeTab === "settings" || activeTab === "whatsapp") && (
+              <div className="max-w-2xl bg-white rounded-3xl p-8 border border-gold/30 shadow-card space-y-6">
+                <h1 className="text-2xl font-black text-burgundy">
+                  {activeTab === "whatsapp" ? "إعدادات الواتساب والتواصل" : "الإعدادات العامة للمتجر"}
+                </h1>
+
+                <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
                   <div>
-                    <label className="block font-bold text-darkText mb-1.5">
-                      رابط النقر (اختياري)
-                    </label>
+                    <label className="block font-bold text-darkText mb-1">رقم الواتساب الرسمي للطلبات</label>
                     <input
-                      type="text"
-                      value={announcementForm.link}
+                      type="tel"
+                      value={storeSettingsForm.whatsapp}
                       onChange={(e) =>
-                        setAnnouncementForm({ ...announcementForm, link: e.target.value })
+                        setStoreSettingsForm({ ...storeSettingsForm, whatsapp: e.target.value })
                       }
-                      placeholder="مثال: /shop أو /shop?sale=1 أو رابط ترويجي"
-                      className="w-full px-4 py-3 rounded-xl border border-gold/30 bg-cream text-darkText font-mono text-left focus:outline-none focus:border-burgundy transition-colors"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
                       dir="ltr"
                     />
                     <p className="text-[10px] text-darkText/50 mt-1">
-                      عند النقر على الشريط سيتم توجيه العميل إلى هذه الصفحة (اتركه فارغاً إن لم ترغب برابط).
+                      هذا الرقم هو الذي يتم إرسال تفاصيل وتأكيدات الطلبات إليه مباشرة.
                     </p>
                   </div>
 
-                  {/* Color Pickers */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-                    {/* Background Color */}
-                    <div className="space-y-2">
-                      <label className="block font-bold text-darkText">
-                        لون خلفية الشريط (Background)
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={announcementForm.bg_color}
-                          onChange={(e) =>
-                            setAnnouncementForm({ ...announcementForm, bg_color: e.target.value })
-                          }
-                          className="w-12 h-12 rounded-xl cursor-pointer border border-gold/30 p-1 bg-white"
-                        />
-                        <input
-                          type="text"
-                          value={announcementForm.bg_color}
-                          onChange={(e) =>
-                            setAnnouncementForm({ ...announcementForm, bg_color: e.target.value })
-                          }
-                          className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs uppercase"
-                          dir="ltr"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 pt-1 flex-wrap">
-                        <span className="text-[10px] text-darkText/60">ألوان سريعة:</span>
-                        {[
-                          { name: "عودي ملكي", hex: "#3B0716" },
-                          { name: "أخضر زمردي", hex: "#15803D" },
-                          { name: "أسود فاخر", hex: "#111827" },
-                          { name: "برونزي عتيق", hex: "#78350F" },
-                          { name: "كحلي هادئ", hex: "#1E293B" },
-                        ].map((p) => (
-                          <button
-                            type="button"
-                            key={p.hex}
-                            onClick={() =>
-                              setAnnouncementForm({ ...announcementForm, bg_color: p.hex })
-                            }
-                            style={{ backgroundColor: p.hex }}
-                            title={p.name}
-                            className="w-5 h-5 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-2xs"
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Text Color */}
-                    <div className="space-y-2">
-                      <label className="block font-bold text-darkText">
-                        لون النص (Text Color)
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={announcementForm.text_color}
-                          onChange={(e) =>
-                            setAnnouncementForm({ ...announcementForm, text_color: e.target.value })
-                          }
-                          className="w-12 h-12 rounded-xl cursor-pointer border border-gold/30 p-1 bg-white"
-                        />
-                        <input
-                          type="text"
-                          value={announcementForm.text_color}
-                          onChange={(e) =>
-                            setAnnouncementForm({ ...announcementForm, text_color: e.target.value })
-                          }
-                          className="flex-1 px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-mono text-xs uppercase"
-                          dir="ltr"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 pt-1 flex-wrap">
-                        <span className="text-[10px] text-darkText/60">ألوان سريعة:</span>
-                        {[
-                          { name: "كريمي فاخر", hex: "#FFFDF8" },
-                          { name: "ذهبي ناعم", hex: "#FDE68A" },
-                          { name: "أبيض ناصع", hex: "#FFFFFF" },
-                          { name: "ذهبي عتيق", hex: "#C9A45C" },
-                        ].map((p) => (
-                          <button
-                            type="button"
-                            key={p.hex}
-                            onClick={() =>
-                              setAnnouncementForm({ ...announcementForm, text_color: p.hex })
-                            }
-                            style={{ backgroundColor: p.hex }}
-                            title={p.name}
-                            className="w-5 h-5 rounded-full border border-black/20 hover:scale-110 transition-transform shadow-2xs"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Submit buttons */}
-                  <div className="pt-4 border-t border-gold/20 flex flex-col sm:flex-row gap-3">
-                    <button
-                      type="submit"
-                      disabled={savingAnnouncement}
-                      className="px-8 py-3.5 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold shadow-gold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      <CheckCircle className="w-4 h-4 text-gold-soft" />
-                      <span>{savingAnnouncement ? "جارِ الحفظ..." : "حفظ وتطبيق التعديلات فوراً"}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAnnouncementForm({
-                          enabled: true,
-                          text: "رشة عطر من صلالة... لروحك",
-                          link: "/shop",
-                          bg_color: "#3B0716",
-                          text_color: "#FFFDF8",
-                        })
+                  <div>
+                    <label className="block font-bold text-darkText mb-1">رقم الهاتف المباشر</label>
+                    <input
+                      type="tel"
+                      value={storeSettingsForm.phone}
+                      onChange={(e) =>
+                        setStoreSettingsForm({ ...storeSettingsForm, phone: e.target.value })
                       }
-                      className="px-5 py-3.5 rounded-xl border border-gold/30 text-darkText/70 hover:bg-beige text-xs font-semibold transition-colors"
-                    >
-                      استعادة النص الافتراضي
-                    </button>
+                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
+                      dir="ltr"
+                    />
                   </div>
+
+                  <div>
+                    <label className="block font-bold text-darkText mb-1">البريد الإلكتروني للعلامة</label>
+                    <input
+                      type="email"
+                      value={storeSettingsForm.email}
+                      onChange={(e) =>
+                        setStoreSettingsForm({ ...storeSettingsForm, email: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-darkText mb-1">رسوم الشحن الافتراضية (ر.ع)</label>
+                      <input
+                        type="number"
+                        value={storeSettingsForm.shipping_default}
+                        onChange={(e) =>
+                          setStoreSettingsForm({ ...storeSettingsForm, shipping_default: Number(e.target.value) })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-darkText mb-1">عتبة الشحن المجاني (ر.ع)</label>
+                      <input
+                        type="number"
+                        value={storeSettingsForm.shipping_free}
+                        onChange={(e) =>
+                          setStoreSettingsForm({ ...storeSettingsForm, shipping_free: Number(e.target.value) })
+                        }
+                        className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold shadow-gold"
+                  >
+                    حفظ الإعدادات
+                  </button>
                 </form>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 7.8. BANNERS TAB */}
-          {activeTab === "banners" && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-burgundy font-alexandria">
-                    البانرات والحملات الترويجية
-                  </h1>
-                  <p className="text-xs text-darkText/60 mt-1">
-                    إدارة البانرات والشريط الإعلاني الترويجي في المتجر
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab("announcement")}
-                  className="px-4 py-2.5 rounded-xl bg-burgundy text-cream font-bold text-xs flex items-center gap-2 shadow-sm"
-                >
-                  <Megaphone className="w-4 h-4 text-gold-soft" />
-                  <span>تعديل الشريط الإعلاني</span>
-                </button>
-              </div>
-
-              {/* Announcement Quick Callout */}
-              <div className="p-6 rounded-3xl bg-gradient-to-r from-burgundy to-burgundy-dark text-cream border border-gold/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-luxury">
-                <div className="space-y-1">
-                  <span className="text-xs text-gold-soft font-bold">الشريط الإعلاني العلوي الفوري</span>
-                  <h3 className="text-lg font-bold">{announcementForm.text}</h3>
-                  <p className="text-xs text-cream/70">
-                    الحالة: {announcementForm.enabled ? "مفعّل ويظهر في أعلى المتجر" : "معطّل حالياً"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab("announcement")}
-                  className="px-5 py-2.5 rounded-xl bg-gold text-burgundy-dark font-bold text-xs hover:bg-white transition-colors"
-                >
-                  التحكم في الشريط ←
-                </button>
-              </div>
-
-              {/* Banners List */}
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">العنوان</th>
-                      <th>الترتيب</th>
-                      <th>الرابط</th>
-                      <th>الحالة</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {banners.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-darkText/40 italic">
-                          لا توجد بانرات إضافية حالياً، يمكنك تفعيل وتعديل الشريط الإعلاني العلوي مباشرة.
-                        </td>
+            {/* 10. ROLES & PERMISSIONS */}
+            {activeTab === "roles" && (
+              <div className="space-y-6">
+                <h1 className="text-2xl font-black text-burgundy">المستخدمين والأدوار الإدارية</h1>
+                <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead>
+                      <tr className="text-darkText/60 border-b border-graySoft pb-2">
+                        <th className="py-2">معرف المستخدم</th>
+                        <th>الدور الحالي</th>
+                        <th>الصلاحيات</th>
                       </tr>
-                    ) : (
-                      banners.map((b) => (
-                        <tr key={b.id} className="hover:bg-beige/30">
-                          <td className="py-3 font-bold text-burgundy">{b.title_ar}</td>
-                          <td>{b.display_order}</td>
-                          <td className="font-mono text-darkText/60">{b.button_link || "-"}</td>
+                    </thead>
+                    <tbody className="divide-y divide-graySoft">
+                      {userRoles.map((r) => (
+                        <tr key={r.id} className="hover:bg-beige/30">
+                          <td className="py-3 font-mono">{r.user_id}</td>
                           <td>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                b.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {b.is_active ? "نشط" : "معطل"}
+                            <span className="font-bold px-2 py-0.5 rounded-full bg-gold/20 text-burgundy">
+                              {r.role}
                             </span>
                           </td>
+                          <td className="text-darkText/60">
+                            {r.role === "admin"
+                              ? "صلاحيات النظام الكاملة"
+                              : r.role === "manager"
+                                ? "المنتجات، الطلبات، المخزون، والتقارير"
+                                : "صلاحيات موظف محدودة"}
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* 8. REVIEWS MODERATION */}
-          {activeTab === "reviews" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-black text-burgundy">تقييمات العملاء والمراجعات</h1>
-              <div className="space-y-4">
-                {reviews.map((r) => (
-                  <div
-                    key={r.id}
-                    className="p-5 rounded-2xl bg-white border border-gold/25 shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-sm text-burgundy">
-                          {r.user_name || "عميل"}
-                        </span>
-                        <span className="text-amber-500">★ {r.rating}</span>
-                        <span className="text-xs text-darkText/50">على عطر: {r.product?.name_ar}</span>
-                      </div>
-                      <p className="text-xs text-darkText/80 italic">"{r.comment}"</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          r.status === "approved"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : r.status === "rejected"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {r.status === "approved"
-                          ? "معتمد"
-                          : r.status === "rejected"
-                          ? "مرفوض"
-                          : "بانتظار الموافقة"}
-                      </span>
-
-                      {r.status !== "approved" && (
-                        <button
-                          onClick={() => handleUpdateReviewStatus(r.id, "approved")}
-                          className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold"
-                        >
-                          اعتماد
-                        </button>
-                      )}
-                      {r.status !== "rejected" && (
-                        <button
-                          onClick={() => handleUpdateReviewStatus(r.id, "rejected")}
-                          className="p-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-bold"
-                        >
-                          رفض
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 9. SETTINGS & WHATSAPP */}
-          {(activeTab === "settings" || activeTab === "whatsapp") && (
-            <div className="max-w-2xl bg-white rounded-3xl p-8 border border-gold/30 shadow-card space-y-6">
-              <h1 className="text-2xl font-black text-burgundy">
-                {activeTab === "whatsapp" ? "إعدادات الواتساب والتواصل" : "الإعدادات العامة للمتجر"}
-              </h1>
-
-              <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-bold text-darkText mb-1">رقم الواتساب الرسمي للطلبات</label>
-                  <input
-                    type="tel"
-                    value={storeSettingsForm.whatsapp}
-                    onChange={(e) =>
-                      setStoreSettingsForm({ ...storeSettingsForm, whatsapp: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
-                    dir="ltr"
-                  />
-                  <p className="text-[10px] text-darkText/50 mt-1">
-                    هذا الرقم هو الذي يتم إرسال تفاصيل وتأكيدات الطلبات إليه مباشرة.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-darkText mb-1">رقم الهاتف المباشر</label>
-                  <input
-                    type="tel"
-                    value={storeSettingsForm.phone}
-                    onChange={(e) =>
-                      setStoreSettingsForm({ ...storeSettingsForm, phone: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-darkText mb-1">البريد الإلكتروني للعلامة</label>
-                  <input
-                    type="email"
-                    value={storeSettingsForm.email}
-                    onChange={(e) =>
-                      setStoreSettingsForm({ ...storeSettingsForm, email: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream text-left font-mono"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-bold text-darkText mb-1">رسوم الشحن الافتراضية (ر.ع)</label>
-                    <input
-                      type="number"
-                      value={storeSettingsForm.shipping_default}
-                      onChange={(e) =>
-                        setStoreSettingsForm({ ...storeSettingsForm, shipping_default: Number(e.target.value) })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-darkText mb-1">عتبة الشحن المجاني (ر.ع)</label>
-                    <input
-                      type="number"
-                      value={storeSettingsForm.shipping_free}
-                      onChange={(e) =>
-                        setStoreSettingsForm({ ...storeSettingsForm, shipping_free: Number(e.target.value) })
-                      }
-                      className="w-full px-4 py-2.5 rounded-xl border border-gold/30 bg-cream font-bold"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="px-6 py-3 rounded-xl bg-burgundy hover:bg-burgundy-light text-cream font-bold shadow-gold"
-                >
-                  حفظ الإعدادات
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* 10. ROLES & PERMISSIONS */}
-          {activeTab === "roles" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-black text-burgundy">المستخدمين والأدوار الإدارية</h1>
-              <div className="bg-white rounded-3xl p-6 border border-gold/25 shadow-card overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="text-darkText/60 border-b border-graySoft pb-2">
-                      <th className="py-2">معرف المستخدم</th>
-                      <th>الدور الحالي</th>
-                      <th>الصلاحيات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-graySoft">
-                    {userRoles.map((r) => (
-                      <tr key={r.id} className="hover:bg-beige/30">
-                        <td className="py-3 font-mono">{r.user_id}</td>
-                        <td>
-                          <span className="font-bold px-2 py-0.5 rounded-full bg-gold/20 text-burgundy">
-                            {r.role}
-                          </span>
-                        </td>
-                        <td className="text-darkText/60">
-                          {r.role === "admin"
-                            ? "صلاحيات النظام الكاملة"
-                            : r.role === "manager"
-                            ? "المنتجات، الطلبات، المخزون، والتقارير"
-                            : "صلاحيات موظف محدودة"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+            )}
+          </main>
+        </div>
       )}
 
       {/* Admin Product Modal */}
@@ -2681,6 +2693,33 @@ function CategoryModal({
     is_active: category?.is_active ?? true,
   });
   const [saving, setSaving] = React.useState(false);
+  const [uploadingImg, setUploadingImg] = React.useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImg(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `category_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const filePath = `categories/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("products")
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+      if (error) throw error;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("products").getPublicUrl(filePath);
+
+      setForm((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch (err: any) {
+      alert(err.message || "فشل رفع الصورة");
+    } finally {
+      setUploadingImg(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.name_ar.trim()) return;
@@ -2738,8 +2777,31 @@ function CategoryModal({
             <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="auto-generated" className="w-full px-4 py-2.5 rounded-xl border border-gold/30 text-sm bg-white focus:ring-2 focus:ring-gold/50 focus:outline-none font-mono" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-darkText mb-1">رابط الصورة</label>
-            <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gold/30 text-sm bg-white focus:ring-2 focus:ring-gold/50 focus:outline-none" />
+            <label className="block text-xs font-bold text-darkText mb-1">صورة التصنيف</label>
+            <div className="flex gap-4 items-center">
+              {form.image_url && (
+                <img src={form.image_url} alt="Preview" className="w-16 h-16 object-cover rounded-xl border border-gold/30" />
+              )}
+              <label className="flex-1 cursor-pointer">
+                <div className="w-full px-4 py-2.5 rounded-xl border border-gold/30 text-sm bg-white hover:bg-gold/5 flex items-center justify-center gap-2 transition-colors">
+                  <Upload className="w-4 h-4 text-burgundy" />
+                  <span className="text-darkText font-medium">
+                    {uploadingImg ? "جاري الرفع..." : "اختر صورة من الجهاز"}
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploadingImg}
+                />
+              </label>
+            </div>
+            <div className="mt-2">
+              <label className="text-xs text-darkText/60 mb-1 block">أو أدخل رابط الصورة مباشرة</label>
+              <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="w-full px-4 py-2 rounded-xl border border-gold/30 text-xs bg-white focus:ring-2 focus:ring-gold/50 focus:outline-none" dir="ltr" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-darkText mb-1">الوصف</label>
@@ -3050,11 +3112,10 @@ function BankModal({
                 key={p.name_ar}
                 type="button"
                 onClick={() => handleApplyPreset(p)}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-colors ${
-                  form.bank_name_ar === p.name_ar
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-colors ${form.bank_name_ar === p.name_ar
                     ? "bg-burgundy text-cream border-burgundy shadow-xs"
                     : "bg-beige/60 text-darkText border-gold/30 hover:bg-gold/20"
-                }`}
+                  }`}
               >
                 {p.name_ar}
               </button>
