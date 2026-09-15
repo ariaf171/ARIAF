@@ -10,7 +10,7 @@ const envAnonKey =
   (import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined);
 
 export const supabaseUrl = envUrl || "https://sglageesshilrpbybtpk.supabase.co";
-export const supabaseAnonKey = envAnonKey || "";
+export const supabaseAnonKey = envAnonKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnbGFnZWVzc2hpbHJwYnlidHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MjUyMjAsImV4cCI6MjEwNDMwMTIyMH0.dNIbSO-C7aaxaBgJ0Rb3x-1e_7Ac0vcxVABYZO5kD6g";
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
@@ -30,7 +30,7 @@ if (!isSupabaseConfigured()) {
 
 export const supabase = createClient(
   supabaseUrl,
-  supabaseAnonKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_fallback_key",
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,
