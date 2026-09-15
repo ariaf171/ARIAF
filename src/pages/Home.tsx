@@ -263,15 +263,23 @@ export default function Home() {
               className="lg:col-span-6 flex items-center justify-center lg:justify-end mt-4 lg:mt-0 order-2"
             >
               {/* slightly asymmetrical framing: taller on right, rounded corners */}
-              <div className="relative w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[480px] aspect-[4/5] sm:aspect-[3/4] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] overflow-hidden shadow-luxury border border-gold/20 group bg-beige">
-                {/* Hero Card Image */}
+              {/* Hero Card Wrapper — inline padding-top trick for cross-browser aspect-ratio */}
+              <div
+                className="relative w-full max-w-[360px] sm:max-w-[420px] lg:max-w-[480px] rounded-t-[100px] rounded-br-[100px] rounded-bl-[20px] overflow-hidden shadow-luxury border border-gold/20 group bg-beige"
+                style={{ paddingTop: 'min(125%, 600px)' }}
+              >
+                {/* Hero Card Image — absolute fill inside the padding-top container */}
                 <img
                   src={heroImg}
                   alt={cardTitle}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-[15s] group-hover:scale-105"
+                  crossOrigin="anonymous"
+                  className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-[15s] group-hover:scale-105"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=1200&q=85";
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (!img.dataset.fallback) {
+                      img.dataset.fallback = '1';
+                      img.src = '/images/arayaf_salalah_hero.jpg';
+                    }
                   }}
                 />
 
