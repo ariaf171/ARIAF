@@ -221,7 +221,7 @@ export default function Checkout() {
         }
       }
 
-      const rawWhatsApp = "96877414193"; // Using strict requested whatsapp number
+      const rawWhatsApp = "968 77414193"; // Using strict requested whatsapp number
       const itemsText = cart
         .map(
           (it, idx) =>
