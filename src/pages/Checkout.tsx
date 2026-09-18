@@ -161,13 +161,15 @@ export default function Checkout() {
 
     setIsSubmitting(true);
     try {
+      const orderId = crypto.randomUUID();
       const year = new Date().getFullYear();
       const randomFive = Math.floor(10000 + Math.random() * 90000);
       const orderNumber = `ARY-${year}-${randomFive}`;
 
-      const { data: orderData, error: orderError } = await supabase
+      const { error: orderError } = await supabase
         .from("orders")
         .insert({
+          id: orderId,
           order_number: orderNumber,
           user_id: user?.id || null,
           customer_name: formData.fullName.trim(),
@@ -186,13 +188,13 @@ export default function Checkout() {
           coupon_code: couponCode,
           status: "new",
           whatsapp_sent: false,
-        })
-        .select("id, order_number")
-        .single();
+        });
 
-      if (orderError || !orderData) {
+      if (orderError) {
         throw new Error(orderError?.message || "فشل تسجيل الطلب");
       }
+
+      const orderData = { id: orderId, order_number: orderNumber };
 
       const orderItems = cart.map((item) => ({
         order_id: orderData.id,
