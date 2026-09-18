@@ -37,8 +37,8 @@ interface StoreContextType {
 
 const defaultSettings: StoreSettings = {
   store_name: { ar: "أرياف", en: "ARAYAF" },
-  whatsapp: { number: "77414193" },
-  phone: { number: "77414193" },
+  whatsapp: { number: "96877414193" },
+  phone: { number: "96877414193" },
   email: { email: "contact@arayaf.com" },
   currency: { code: "OMR", symbol: "ر.ع" },
   shipping: { default: 2, free_shipping_threshold: 25 },

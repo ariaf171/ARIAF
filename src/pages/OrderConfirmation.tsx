@@ -62,7 +62,7 @@ export default function OrderConfirmation() {
   // Generate WhatsApp message exactly matching the requested format
   const handleOpenWhatsApp = () => {
     if (!order) return;
-    const rawNumber = "77414193"; // Using the strictly provided number
+    const rawNumber = "96877414193"; // Using the strictly provided number
 
     const itemsText =
       order.order_items && order.order_items.length > 0
